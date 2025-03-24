@@ -1,0 +1,130 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 20%;
+
+    --primary: 142 97% 28%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 96% 38%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 97%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 142 50% 93%;
+    --accent-foreground: 142 97% 22%;
+
+    --destructive: 0 96% 38%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 142 97% 28%;
+
+    --radius: 4px;
+  }
+
+  .dark {
+    --background: 0 0% 12%;
+    --foreground: 0 0% 98%;
+
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 142 97% 28%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 96% 38%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 142 97% 12%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 96% 38%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 142 97% 28%;
+  }
+}
+
+:root {
+  --primary-green: #028e2a;
+  --primary-red: #ba0612;
+  --primary-dark-green: #016e20;
+  --primary-dark-red: #9a050f;
+  --primary-light-green: #e6f5e9;
+  --primary-light-red: #fde6e8;
+  --text-color: #333333;
+  --text-light: #666666;
+  --background-color: #ffffff;
+  --background-light: #f8f9fa;
+  --border-color: #e0e0e0;
+  --success-color: #28a745;
+  --danger-color: #dc3545;
+  --warning-color: #ffc107;
+  --info-color: #17a2b8;
+  --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --border-radius: 4px;
+  --transition: all 0.3s ease;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Clases de utilidad para los colores personalizados */
+.bg-primary-green {
+  background-color: var(--primary-green);
+}
+.bg-primary-red {
+  background-color: var(--primary-red);
+}
+.bg-primary-dark-green {
+  background-color: var(--primary-dark-green);
+}
+.bg-primary-dark-red {
+  background-color: var(--primary-dark-red);
+}
+.bg-primary-light-green {
+  background-color: var(--primary-light-green);
+}
+.bg-primary-light-red {
+  background-color: var(--primary-light-red);
+}
+.text-primary-green {
+  color: var(--primary-green);
+}
+.text-primary-red {
+  color: var(--primary-red);
+}
+.border-primary-green {
+  border-color: var(--primary-green);
+}
+.border-primary-red {
+  border-color: var(--primary-red);
+}
+
