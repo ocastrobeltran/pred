@@ -24,7 +24,7 @@ export default function DashboardLayout({
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary-green border-t-transparent"></div>
       </div>
     )
   }
@@ -43,11 +43,29 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen flex-col">
+      {/* Barra superior - similar a la del IDER */}
+      <div className="bg-primary-red text-white">
+        <div className="container mx-auto flex h-10 items-center justify-between px-4">
+          <div>
+            <span className="text-sm font-medium">Instituto Distrital de Deporte y Recreación</span>
+          </div>
+          <div className="flex items-center space-x-4 text-sm">
+            <Link href="#" className="hover:underline">
+              Servicios a la ciudadanía
+            </Link>
+            <span>|</span>
+            <Link href="#" className="hover:underline">
+              Transparencia
+            </Link>
+          </div>
+        </div>
+      </div>
+
       <header className="sticky top-0 z-20 border-b bg-background">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2 md:gap-6">
             <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-              <span className="text-xl text-primary">PRED</span>
+              <span className="text-xl text-primary-green">PRED</span>
             </Link>
             <nav className="hidden md:flex">
               <div className="flex space-x-4">
@@ -56,8 +74,8 @@ export default function DashboardLayout({
                     key={link.href}
                     href={link.href}
                     className={cn(
-                      "flex items-center gap-1 text-sm font-medium transition-colors hover:text-primary",
-                      pathname === link.href ? "text-primary" : "text-muted-foreground",
+                      "flex items-center gap-1 text-sm font-medium transition-colors hover:text-primary-green",
+                      pathname === link.href ? "text-primary-green" : "text-muted-foreground",
                     )}
                   >
                     {link.icon}

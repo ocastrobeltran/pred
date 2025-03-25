@@ -27,7 +27,7 @@ export interface Escenario {
   deporte: string
   deporte_id: number
   estado: string
-  imagen: string | null
+  imagen_principal: string | null
   amenidades?: Amenidad[]
   deportes?: Deporte[]
   imagenes?: Imagen[]
@@ -112,6 +112,22 @@ export interface Notificacion {
   tipo: string
   url: string
   leida: boolean
+  created_at: string
+}
+
+// Rol de usuario
+export interface Rol {
+  id: number
+  nombre: string
+}
+
+// Archivo
+export interface Archivo {
+  id: number
+  nombre: string
+  url: string
+  tipo: string
+  tamano: number
   created_at: string
 }
 

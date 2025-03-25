@@ -11,9 +11,10 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
-import { API_URL } from "@/lib/config"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { getEscenarios, getLocalidades, getDeportes } from "@/services/escenario-service"
+import { useToast } from "@/hooks/use-toast"
 
 interface Escenario {
   id: number
@@ -37,12 +38,14 @@ interface Deporte {
 }
 
 export default function EscenariosPage() {
+  const { toast } = useToast()
   const [escenarios, setEscenarios] = useState<Escenario[]>([])
   const [localidades, setLocalidades] = useState<Localidad[]>([])
   const [deportes, setDeportes] = useState<Deporte[]>([])
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Filtros
   const [searchTerm, setSearchTerm] = useState("")
@@ -53,59 +56,79 @@ export default function EscenariosPage() {
     // Cargar localidades y deportes para los filtros
     const fetchFilterData = async () => {
       try {
-        const [localidadesRes, deportesRes] = await Promise.all([
-          fetch(`${API_URL}/escenarios/localidades`),
-          fetch(`${API_URL}/escenarios/deportes`),
-        ])
+        setLoading(true)
+        setError(null)
 
-        const localidadesData = await localidadesRes.json()
-        const deportesData = await deportesRes.json()
+        const [localidadesRes, deportesRes] = await Promise.all([getLocalidades(), getDeportes()])
 
-        if (localidadesData.success) {
-          setLocalidades(localidadesData.data)
+        if (localidadesRes.success) {
+          setLocalidades(localidadesRes.data || [])
+        } else {
+          console.error("Error al cargar localidades:", localidadesRes.message)
         }
 
-        if (deportesData.success) {
-          setDeportes(deportesData.data)
+        if (deportesRes.success) {
+          setDeportes(deportesRes.data || [])
+        } else {
+          console.error("Error al cargar deportes:", deportesRes.message)
         }
       } catch (error) {
         console.error("Error al cargar datos de filtros:", error)
+        setError("Error al cargar datos de filtros. Por favor, intenta nuevamente.")
       }
     }
 
     fetchFilterData()
     fetchEscenarios()
-  }, [currentPage])
+  }, [])
 
   const fetchEscenarios = async () => {
     setLoading(true)
+    setError(null)
+
     try {
       // Construir parámetros de filtro
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-      })
+      const filters: any = {}
 
       if (searchTerm) {
-        params.append("search", searchTerm)
+        filters.search = searchTerm
       }
 
       if (localidadFilter !== "all") {
-        params.append("localidad_id", localidadFilter)
+        filters.localidad_id = localidadFilter
       }
 
       if (deporteFilter !== "all") {
-        params.append("deporte_id", deporteFilter)
+        filters.deporte_id = deporteFilter
       }
 
-      const response = await fetch(`${API_URL}/escenarios?${params.toString()}`)
-      const data = await response.json()
+      const response = await getEscenarios(currentPage, filters)
 
-      if (data.success) {
-        setEscenarios(data.data.data)
-        setTotalPages(data.data.last_page)
+      if (response.success) {
+        // Verificar la estructura de la respuesta
+        if (response.data && Array.isArray(response.data.data)) {
+          setEscenarios(response.data.data)
+          setTotalPages(response.data.last_page || 1)
+        } else if (Array.isArray(response.data)) {
+          // Si la respuesta es un array directamente
+          setEscenarios(response.data)
+          setTotalPages(1)
+        } else {
+          console.error("Formato de respuesta inesperado:", response.data)
+          setEscenarios([])
+          setTotalPages(1)
+        }
+      } else {
+        console.error("Error al cargar escenarios:", response.message)
+        setError(response.message || "Error al cargar escenarios")
+        setEscenarios([])
+        setTotalPages(1)
       }
     } catch (error) {
       console.error("Error al cargar escenarios:", error)
+      setError("Error al cargar escenarios. Por favor, intenta nuevamente.")
+      setEscenarios([])
+      setTotalPages(1)
     } finally {
       setLoading(false)
     }
@@ -118,6 +141,11 @@ export default function EscenariosPage() {
     setCurrentPage(1) // Resetear a la primera página
 
     // Ejecutar búsqueda con los nuevos filtros
+    fetchEscenarios()
+  }
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
     fetchEscenarios()
   }
 
@@ -162,6 +190,17 @@ export default function EscenariosPage() {
         <div className="mb-8">
           <EscenarioFilter localidades={localidades} deportes={deportes} onFilter={handleFilter} />
         </div>
+
+        {/* Mensaje de error */}
+        {error && (
+          <div className="mb-8 rounded-md bg-destructive/10 p-4 text-destructive">
+            <p className="font-medium">Error:</p>
+            <p>{error}</p>
+            <Button onClick={fetchEscenarios} variant="outline" className="mt-2">
+              Reintentar
+            </Button>
+          </div>
+        )}
 
         {/* Lista de escenarios */}
         {loading ? (
@@ -209,7 +248,7 @@ export default function EscenariosPage() {
         )}
 
         {/* Paginación */}
-        {!loading && escenarios.length > 0 && (
+        {!loading && escenarios.length > 0 && totalPages > 1 && (
           <Pagination className="mt-8">
             <PaginationContent>
               <PaginationItem>
@@ -218,7 +257,7 @@ export default function EscenariosPage() {
                   onClick={(e) => {
                     e.preventDefault()
                     if (currentPage > 1) {
-                      setCurrentPage(currentPage - 1)
+                      handlePageChange(currentPage - 1)
                     }
                   }}
                   className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
@@ -231,7 +270,7 @@ export default function EscenariosPage() {
                     href="#"
                     onClick={(e) => {
                       e.preventDefault()
-                      setCurrentPage(page)
+                      handlePageChange(page)
                     }}
                     isActive={page === currentPage}
                   >
@@ -246,7 +285,7 @@ export default function EscenariosPage() {
                   onClick={(e) => {
                     e.preventDefault()
                     if (currentPage < totalPages) {
-                      setCurrentPage(currentPage + 1)
+                      handlePageChange(currentPage + 1)
                     }
                   }}
                   className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}

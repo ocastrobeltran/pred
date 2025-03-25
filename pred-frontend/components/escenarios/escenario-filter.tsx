@@ -14,10 +14,10 @@ interface EscenarioFilterProps {
   onFilter: (search: string, localidad: string, deporte: string) => void
 }
 
-export function EscenarioFilter({ localidades, deportes, onFilter }: EscenarioFilterProps) {
+export function EscenarioFilter({ localidades = [], deportes = [], onFilter }: EscenarioFilterProps) {
   const [searchTerm, setSearchTerm] = useState("")
-  const [localidadFilter, setLocalidadFilter] = useState("")
-  const [deporteFilter, setDeporteFilter] = useState("")
+  const [localidadFilter, setLocalidadFilter] = useState("all")
+  const [deporteFilter, setDeporteFilter] = useState("all")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

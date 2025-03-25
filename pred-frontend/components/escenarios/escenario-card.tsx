@@ -5,23 +5,23 @@ import Link from "next/link"
 interface EscenarioCardProps {
   id: number
   nombre: string
-  descripcion: string
-  direccion: string
-  localidad: string
-  capacidad: number
-  deporte: string
-  imagen: string | null
+  descripcion?: string
+  direccion?: string
+  localidad?: string
+  capacidad?: number
+  deporte?: string
+  imagen?: string | null
 }
 
 export function EscenarioCard({
   id,
   nombre,
-  descripcion,
-  direccion,
-  localidad,
-  capacidad,
-  deporte,
-  imagen,
+  descripcion = "Sin descripción disponible",
+  direccion = "Dirección no disponible",
+  localidad = "Localidad no especificada",
+  capacidad = 0,
+  deporte = "Deporte no especificado",
+  imagen = null,
 }: EscenarioCardProps) {
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden venue-card">
@@ -37,7 +37,7 @@ export function EscenarioCard({
       </div>
       <div className="p-4">
         <h3 className="text-xl font-bold mb-2">{nombre}</h3>
-        <p className="text-gray-600 mb-4 line-clamp-2">{descripcion || "Sin descripción disponible"}</p>
+        <p className="text-gray-600 mb-4 line-clamp-2">{descripcion}</p>
         <div className="flex flex-col gap-2 mb-4">
           <div className="flex items-center text-sm text-gray-500">
             <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />

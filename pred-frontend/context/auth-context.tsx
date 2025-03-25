@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { API_URL } from "@/lib/config"
+import { getCurrentUser, login as loginService } from "@/services/auth-service"
 import type { User } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 
@@ -37,16 +37,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUser = async (authToken: string) => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_URL}/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      })
+      const response = await getCurrentUser(authToken)
 
-      const data = await response.json()
-
-      if (data.success) {
-        setUser(data.data)
+      if (response.success) {
+        setUser(response.data)
       } else {
         // Si hay un error, limpiar el token
         localStorage.removeItem("pred_token")
@@ -64,25 +58,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Iniciar sesión
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      })
+      const response = await loginService(email, password)
 
-      const data = await response.json()
-
-      if (data.success) {
-        localStorage.setItem("pred_token", data.data.token)
-        setToken(data.data.token)
-        setUser(data.data.user)
+      if (response.success) {
+        localStorage.setItem("pred_token", response.data.token)
+        setToken(response.data.token)
+        setUser(response.data.user)
         return true
       } else {
         toast({
           title: "Error de inicio de sesión",
-          description: data.message || "Credenciales incorrectas",
+          description: response.message || "Credenciales incorrectas",
           variant: "destructive",
         })
         return false

@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/context/auth-context"
-import { API_URL } from "@/lib/config"
+import { getPropositos, createSolicitud } from "@/services/solicitud-service"
+import type { Proposito } from "@/lib/types"
 
 interface SolicitudFormProps {
   escenarioId: string
@@ -18,11 +19,6 @@ interface SolicitudFormProps {
   hora: string
   escenarioNombre: string
   escenarioCapacidad: number
-}
-
-interface Proposito {
-  id: number
-  nombre: string
 }
 
 export function SolicitudForm({ escenarioId, fecha, hora, escenarioNombre, escenarioCapacidad }: SolicitudFormProps) {
@@ -43,18 +39,12 @@ export function SolicitudForm({ escenarioId, fecha, hora, escenarioNombre, escen
     // Cargar propósitos
     const fetchPropositos = async () => {
       try {
-        const res = await fetch(`${API_URL}/solicitudes/propositos`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
+        const response = await getPropositos()
 
-        const data = await res.json()
-
-        if (data.success) {
-          setPropositos(data.data)
-          if (data.data.length > 0) {
-            setPropositoId(data.data[0].id.toString())
+        if (response.success) {
+          setPropositos(response.data)
+          if (response.data.length > 0) {
+            setPropositoId(response.data[0].id.toString())
           }
         }
       } catch (error) {
@@ -88,35 +78,30 @@ export function SolicitudForm({ escenarioId, fecha, hora, escenarioNombre, escen
       horaInicioDate.setHours(horaInicioDate.getHours() + 2)
       const horaFin = horaInicioDate.toTimeString().substring(0, 8)
 
-      const res = await fetch(`${API_URL}/solicitudes`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          escenario_id: escenarioId,
-          fecha_reserva: fecha,
-          hora_inicio: horaInicio,
-          hora_fin: horaFin,
-          proposito_id: propositoId,
-          num_participantes: Number.parseInt(numParticipantes),
-          notas: notas,
-        }),
+      const response = await createSolicitud({
+        escenario_id: escenarioId,
+        fecha_reserva: fecha,
+        hora_inicio: horaInicio,
+        hora_fin: horaFin,
+        proposito_id: propositoId,
+        num_participantes: Number.parseInt(numParticipantes),
+        notas: notas,
       })
 
-      const data = await res.json()
-
-      if (data.success) {
+      if (response.success) {
         setSuccess(true)
         toast({
           title: "Solicitud enviada",
           description: "Tu solicitud de reserva ha sido enviada correctamente",
         })
+        // Redirigir al usuario a la página de sus reservas
+        setTimeout(() => {
+          router.push("/dashboard/mis-reservas")
+        }, 2000)
       } else {
         toast({
           title: "Error",
-          description: data.message || "Error al enviar la solicitud",
+          description: response.message || "Error al enviar la solicitud",
           variant: "destructive",
         })
       }
@@ -135,7 +120,39 @@ export function SolicitudForm({ escenarioId, fecha, hora, escenarioNombre, escen
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-green border-t-transparent"></div>
+      </div>
+    )
+  }
+
+  if (success) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary-light-green text-primary-green">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-8 w-8"
+          >
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+        </div>
+        <h3 className="mb-2 text-xl font-semibold">¡Solicitud Enviada!</h3>
+        <p className="mb-4 text-muted-foreground">
+          Tu solicitud de reserva ha sido enviada correctamente. Serás redirigido a tus reservas en unos segundos.
+        </p>
+        <Button
+          onClick={() => router.push("/dashboard/mis-reservas")}
+          className="bg-primary-green hover:bg-primary-dark-green"
+        >
+          Ver mis reservas
+        </Button>
       </div>
     )
   }
@@ -183,7 +200,7 @@ export function SolicitudForm({ escenarioId, fecha, hora, escenarioNombre, escen
         />
       </div>
 
-      <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={submitting}>
+      <Button type="submit" className="w-full bg-primary-green hover:bg-primary-dark-green" disabled={submitting}>
         {submitting ? "Enviando..." : "Enviar Solicitud"}
       </Button>
     </form>

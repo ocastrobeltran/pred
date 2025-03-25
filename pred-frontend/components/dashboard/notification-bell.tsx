@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/context/auth-context"
-import { API_URL } from "@/lib/config"
+import { contarNoLeidas } from "@/services/notificacion-service"
 import Link from "next/link"
 
 export function NotificationBell() {
@@ -14,15 +14,10 @@ export function NotificationBell() {
   useEffect(() => {
     if (token) {
       // Obtener conteo de notificaciones no leídas
-      fetch(`${API_URL}/notificaciones/contar-no-leidas`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            setNotificationCount(data.data.count)
+      contarNoLeidas()
+        .then((response) => {
+          if (response.success) {
+            setNotificationCount(response.data.count)
           }
         })
         .catch((error) => {
@@ -36,7 +31,7 @@ export function NotificationBell() {
       <Link href="/dashboard/notificaciones">
         <Bell className="h-5 w-5" />
         {notificationCount > 0 && (
-          <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground">
+          <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary-red text-[10px] text-white">
             {notificationCount > 9 ? "9+" : notificationCount}
           </span>
         )}

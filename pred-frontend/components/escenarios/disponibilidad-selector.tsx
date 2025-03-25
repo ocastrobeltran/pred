@@ -56,7 +56,7 @@ export function DisponibilidadSelector({
               key={fechaItem.value}
               variant={fecha === fechaItem.value ? "default" : "outline"}
               className={`h-auto py-2 px-1 flex flex-col ${
-                fecha === fechaItem.value ? "bg-primary hover:bg-primary/90" : ""
+                fecha === fechaItem.value ? "bg-primary-green hover:bg-primary-dark-green" : ""
               }`}
               onClick={() => onFechaChange(fechaItem.value)}
             >
@@ -80,7 +80,7 @@ export function DisponibilidadSelector({
               <Button
                 key={hora}
                 variant="outline"
-                className="text-center hover:bg-primary hover:text-white"
+                className="text-center hover:bg-primary-green hover:text-white"
                 onClick={() => handleReservar(hora)}
               >
                 {hora.substring(0, 5)}

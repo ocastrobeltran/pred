@@ -57,7 +57,7 @@ export function LoginForm() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Contraseña</Label>
-              <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+              <Link href="/forgot-password" className="text-sm text-primary-green hover:underline">
                 ¿Olvidaste tu contraseña?
               </Link>
             </div>
@@ -71,12 +71,12 @@ export function LoginForm() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full bg-primary-green hover:bg-primary-dark-green" disabled={isLoading}>
             {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
           </Button>
           <div className="text-center text-sm">
             ¿No tienes una cuenta?{" "}
-            <Link href="/register" className="text-primary hover:underline">
+            <Link href="/register" className="text-primary-green hover:underline">
               Regístrate
             </Link>
           </div>

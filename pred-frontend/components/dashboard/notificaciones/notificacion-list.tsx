@@ -4,19 +4,10 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/context/auth-context"
 import { useToast } from "@/hooks/use-toast"
-import { API_URL } from "@/lib/config"
+import { getNotificaciones, marcarLeida, marcarTodasLeidas } from "@/services/notificacion-service"
 import { NotificacionCard } from "./notificacion-card"
 import { CheckCheck } from "lucide-react"
-
-interface Notificacion {
-  id: number
-  titulo: string
-  mensaje: string
-  tipo: string
-  url: string
-  leida: boolean
-  created_at: string
-}
+import type { Notificacion } from "@/lib/types"
 
 export function NotificacionList() {
   const { token } = useAuth()
@@ -33,20 +24,14 @@ export function NotificacionList() {
 
     setLoading(true)
     try {
-      const res = await fetch(`${API_URL}/notificaciones`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const response = await getNotificaciones()
 
-      const data = await res.json()
-
-      if (data.success) {
-        setNotificaciones(data.data.data)
+      if (response.success) {
+        setNotificaciones(response.data.data)
       } else {
         toast({
           title: "Error",
-          description: data.message || "Error al cargar notificaciones",
+          description: response.message || "Error al cargar notificaciones",
           variant: "destructive",
         })
       }
@@ -66,16 +51,9 @@ export function NotificacionList() {
     if (!token) return
 
     try {
-      const res = await fetch(`${API_URL}/notificaciones/${id}/marcar-leida`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const response = await marcarLeida(id)
 
-      const data = await res.json()
-
-      if (data.success) {
+      if (response.success) {
         // Actualizar el estado local
         setNotificaciones((prevNotificaciones) =>
           prevNotificaciones.map((notif) => (notif.id === id ? { ...notif, leida: true } : notif)),
@@ -83,7 +61,7 @@ export function NotificacionList() {
       } else {
         toast({
           title: "Error",
-          description: data.message || "Error al marcar notificación como leída",
+          description: response.message || "Error al marcar notificación como leída",
           variant: "destructive",
         })
       }
@@ -101,16 +79,9 @@ export function NotificacionList() {
     if (!token) return
 
     try {
-      const res = await fetch(`${API_URL}/notificaciones/marcar-todas-leidas`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const response = await marcarTodasLeidas()
 
-      const data = await res.json()
-
-      if (data.success) {
+      if (response.success) {
         // Actualizar el estado local
         setNotificaciones((prevNotificaciones) => prevNotificaciones.map((notif) => ({ ...notif, leida: true })))
 
@@ -121,7 +92,7 @@ export function NotificacionList() {
       } else {
         toast({
           title: "Error",
-          description: data.message || "Error al marcar todas las notificaciones como leídas",
+          description: response.message || "Error al marcar todas las notificaciones como leídas",
           variant: "destructive",
         })
       }
@@ -138,7 +109,7 @@ export function NotificacionList() {
   if (loading) {
     return (
       <div className="flex h-40 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-green border-t-transparent"></div>
       </div>
     )
   }

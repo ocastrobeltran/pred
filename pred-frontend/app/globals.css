@@ -13,24 +13,26 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 20%;
 
-    --primary: 142 97% 28%;
+    /* Color verde institucional IDER */
+    --primary: 142 76% 28%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 96% 38%;
+    /* Color rojo institucional IDER */
+    --secondary: 0 84% 38%;
     --secondary-foreground: 0 0% 100%;
 
     --muted: 0 0% 97%;
     --muted-foreground: 0 0% 40%;
 
     --accent: 142 50% 93%;
-    --accent-foreground: 142 97% 22%;
+    --accent-foreground: 142 76% 22%;
 
-    --destructive: 0 96% 38%;
+    --destructive: 0 84% 38%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 0 0% 88%;
     --input: 0 0% 88%;
-    --ring: 142 97% 28%;
+    --ring: 142 76% 28%;
 
     --radius: 4px;
   }
@@ -45,28 +47,31 @@
     --popover: 0 0% 12%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 142 97% 28%;
+    /* Color verde institucional IDER */
+    --primary: 142 76% 28%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 96% 38%;
+    /* Color rojo institucional IDER */
+    --secondary: 0 84% 38%;
     --secondary-foreground: 0 0% 100%;
 
     --muted: 0 0% 20%;
     --muted-foreground: 0 0% 60%;
 
-    --accent: 142 97% 12%;
+    --accent: 142 76% 12%;
     --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 96% 38%;
+    --destructive: 0 84% 38%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 0 0% 20%;
     --input: 0 0% 20%;
-    --ring: 142 97% 28%;
+    --ring: 142 76% 28%;
   }
 }
 
 :root {
+  /* Colores institucionales exactos del IDER */
   --primary-green: #028e2a;
   --primary-red: #ba0612;
   --primary-dark-green: #016e20;

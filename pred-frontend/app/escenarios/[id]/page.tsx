@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { EscenarioGallery } from "@/components/escenarios/escenario-gallery"
 import { DisponibilidadSelector } from "@/components/escenarios/disponibilidad-selector"
-import { API_URL } from "@/lib/config"
+import { getEscenarioById, getHorariosDisponibles } from "@/services/escenario-service"
 import { MapPin, Users, Calendar, Clock, BadgeInfo } from "lucide-react"
 import Link from "next/link"
+import { useToast } from "@/hooks/use-toast"
 
 interface EscenarioPageProps {
   params: {
@@ -42,6 +43,7 @@ interface Escenario {
 
 export default function EscenarioPage({ params }: EscenarioPageProps) {
   const { id } = params
+  const { toast } = useToast()
   const [escenario, setEscenario] = useState<Escenario | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -53,17 +55,16 @@ export default function EscenarioPage({ params }: EscenarioPageProps) {
     const fetchEscenario = async () => {
       setLoading(true)
       try {
-        const response = await fetch(`${API_URL}/escenarios/${id}`)
-        const data = await response.json()
+        const response = await getEscenarioById(id)
 
-        if (data.success) {
-          setEscenario(data.data)
+        if (response.success) {
+          setEscenario(response.data)
 
           // Establecer la fecha actual como fecha seleccionada por defecto
           const hoy = new Date()
           setFechaSeleccionada(hoy.toISOString().split("T")[0])
         } else {
-          setError(data.message || "Error al cargar el escenario")
+          setError(response.message || "Error al cargar el escenario")
         }
       } catch (error) {
         console.error("Error al cargar el escenario:", error)
@@ -86,17 +87,26 @@ export default function EscenarioPage({ params }: EscenarioPageProps) {
   const fetchHorariosDisponibles = async () => {
     setCargandoHorarios(true)
     try {
-      const response = await fetch(`${API_URL}/escenarios/${id}/horarios-disponibles?fecha=${fechaSeleccionada}`)
-      const data = await response.json()
+      const response = await getHorariosDisponibles(id, fechaSeleccionada)
 
-      if (data.success) {
-        setHorasDisponibles(data.data)
+      if (response.success) {
+        setHorasDisponibles(response.data)
       } else {
-        console.error("Error al obtener horarios:", data.message)
+        console.error("Error al obtener horarios:", response.message)
+        toast({
+          title: "Error",
+          description: response.message || "Error al obtener horarios disponibles",
+          variant: "destructive",
+        })
         setHorasDisponibles([])
       }
     } catch (error) {
       console.error("Error al obtener horarios:", error)
+      toast({
+        title: "Error de conexión",
+        description: "No se pudo conectar con el servidor",
+        variant: "destructive",
+      })
       setHorasDisponibles([])
     } finally {
       setCargandoHorarios(false)
@@ -110,7 +120,7 @@ export default function EscenarioPage({ params }: EscenarioPageProps) {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary-green border-t-transparent"></div>
       </div>
     )
   }
@@ -118,9 +128,9 @@ export default function EscenarioPage({ params }: EscenarioPageProps) {
   if (error || !escenario) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 p-4 text-center">
-        <h1 className="text-2xl font-bold text-red-500">Error</h1>
+        <h1 className="text-2xl font-bold text-primary-red">Error</h1>
         <p>{error || "No se pudo cargar el escenario"}</p>
-        <Button asChild>
+        <Button asChild className="bg-primary-green hover:bg-primary-dark-green">
           <Link href="/escenarios">Volver a escenarios</Link>
         </Button>
       </div>
@@ -133,28 +143,33 @@ export default function EscenarioPage({ params }: EscenarioPageProps) {
       <header className="bg-white border-b">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-primary">PRED</span>
+            <span className="text-2xl font-bold text-primary-green">PRED</span>
           </Link>
           <nav className="hidden space-x-4 md:flex">
-            <Link href="/" className="text-sm font-medium hover:text-primary">
+            <Link href="/" className="text-sm font-medium hover:text-primary-green">
               Inicio
             </Link>
-            <Link href="/escenarios" className="text-sm font-medium text-primary">
+            <Link href="/escenarios" className="text-sm font-medium text-primary-green">
               Escenarios
             </Link>
-            <Link href="/#como-funciona" className="text-sm font-medium hover:text-primary">
+            <Link href="/#como-funciona" className="text-sm font-medium hover:text-primary-green">
               Cómo Funciona
             </Link>
-            <Link href="/#contacto" className="text-sm font-medium hover:text-primary">
+            <Link href="/#contacto" className="text-sm font-medium hover:text-primary-green">
               Contacto
             </Link>
           </nav>
           <div className="flex items-center gap-4">
             <Link href="/login">
-              <Button variant="outline">Iniciar Sesión</Button>
+              <Button
+                variant="outline"
+                className="border-primary-green text-primary-green hover:bg-primary-light-green"
+              >
+                Iniciar Sesión
+              </Button>
             </Link>
             <Link href="/register" className="hidden md:block">
-              <Button>Registrarse</Button>
+              <Button className="bg-primary-green hover:bg-primary-dark-green">Registrarse</Button>
             </Link>
           </div>
         </div>
@@ -184,28 +199,28 @@ export default function EscenarioPage({ params }: EscenarioPageProps) {
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="flex items-center gap-2">
-                      <MapPin className="h-5 w-5 text-primary" />
+                      <MapPin className="h-5 w-5 text-primary-green" />
                       <div>
                         <p className="font-medium">Dirección</p>
                         <p className="text-sm text-muted-foreground">{escenario.direccion}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Users className="h-5 w-5 text-primary" />
+                      <Users className="h-5 w-5 text-primary-green" />
                       <div>
                         <p className="font-medium">Capacidad</p>
                         <p className="text-sm text-muted-foreground">{escenario.capacidad} personas</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5 text-primary" />
+                      <Calendar className="h-5 w-5 text-primary-green" />
                       <div>
                         <p className="font-medium">Deporte principal</p>
                         <p className="text-sm text-muted-foreground">{escenario.deporte}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-primary" />
+                      <Clock className="h-5 w-5 text-primary-green" />
                       <div>
                         <p className="font-medium">Dimensiones</p>
                         <p className="text-sm text-muted-foreground">{escenario.dimensiones || "No especificado"}</p>
@@ -233,7 +248,7 @@ export default function EscenarioPage({ params }: EscenarioPageProps) {
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {escenario.amenidades.map((amenidad) => (
                         <div key={amenidad.id} className="flex items-center gap-2">
-                          <BadgeInfo className="h-4 w-4 text-primary" />
+                          <BadgeInfo className="h-4 w-4 text-primary-green" />
                           <span className="text-sm">{amenidad.nombre}</span>
                         </div>
                       ))}
@@ -252,7 +267,7 @@ export default function EscenarioPage({ params }: EscenarioPageProps) {
 
                 {cargandoHorarios ? (
                   <div className="flex justify-center py-8">
-                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-green border-t-transparent"></div>
                   </div>
                 ) : (
                   <DisponibilidadSelector
