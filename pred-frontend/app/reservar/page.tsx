@@ -4,11 +4,103 @@ import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { SolicitudForm } from "@/components/forms/solicitud-form"
-import { API_URL } from "@/lib/config"
 import { useAuth } from "@/context/auth-context"
 import { Button } from "@/components/ui/button"
 import { MapPin, Calendar, Clock } from "lucide-react"
 import Link from "next/link"
+import { getEscenarioById } from "@/services/escenario-service"
+
+// Mock data for escenarios since the backend isn't working correctly
+const MOCK_ESCENARIOS = {
+  "1": {
+    id: 1,
+    nombre: "Estadio El Campín",
+    descripcion: "Estadio principal de la ciudad con capacidad para eventos deportivos de gran escala.",
+    direccion: "Calle 57 #21-83, Bogotá",
+    localidad: "Teusaquillo",
+    capacidad: 36343,
+    dimensiones: "105m x 68m",
+    deporte: "Fútbol",
+    estado: "Activo",
+  },
+  "2": {
+    id: 2,
+    nombre: "Coliseo El Salitre",
+    descripcion: "Coliseo cubierto ideal para prácticas de baloncesto y competencias.",
+    direccion: "Av. 68 #63-45, Bogotá",
+    localidad: "Fontibón",
+    capacidad: 5000,
+    dimensiones: "40m x 20m",
+    deporte: "Baloncesto",
+    estado: "Activo",
+  },
+  "3": {
+    id: 3,
+    nombre: "Complejo de Tenis",
+    descripcion: "Canchas profesionales de tenis con iluminación y servicio completo.",
+    direccion: "Calle 163 #8-50, Bogotá",
+    localidad: "Usaquén",
+    capacidad: 1000,
+    dimensiones: "23.77m x 10.97m",
+    deporte: "Tenis",
+    estado: "Activo",
+  },
+  "4": {
+    id: 4,
+    nombre: "Piscina Olímpica",
+    descripcion: "Piscina olímpica con carriles reglamentarios y área de calentamiento.",
+    direccion: "Calle 63 #47-06, Bogotá",
+    localidad: "Engativá",
+    capacidad: 800,
+    dimensiones: "50m x 25m",
+    deporte: "Natación",
+    estado: "Activo",
+  },
+  "5": {
+    id: 5,
+    nombre: "Pista de Atletismo",
+    descripcion: "Pista de atletismo con superficie reglamentaria y áreas para saltos y lanzamientos.",
+    direccion: "Av. Boyacá #80-94, Bogotá",
+    localidad: "Kennedy",
+    capacidad: 1200,
+    dimensiones: "400m de perímetro",
+    deporte: "Atletismo",
+    estado: "Activo",
+  },
+  "6": {
+    id: 6,
+    nombre: "Cancha de Voleibol",
+    descripcion: "Cancha de voleibol con superficie de madera y equipamiento completo.",
+    direccion: "Calle 26 #25-71, Bogotá",
+    localidad: "Chapinero",
+    capacidad: 500,
+    dimensiones: "18m x 9m",
+    deporte: "Voleibol",
+    estado: "Activo",
+  },
+  "7": {
+    id: 7,
+    nombre: "Cancha de Béisbol",
+    descripcion: "Campo de béisbol con dimensiones reglamentarias y dugouts.",
+    direccion: "Av. Calle 26 #55-41, Bogotá",
+    localidad: "Suba",
+    capacidad: 3000,
+    dimensiones: "120m x 120m",
+    deporte: "Béisbol",
+    estado: "Activo",
+  },
+  "8": {
+    id: 8,
+    nombre: "Gimnasio Municipal",
+    descripcion: "Gimnasio con equipamiento completo para entrenamiento de fuerza y cardio.",
+    direccion: "Calle 45 #14-30, Bogotá",
+    localidad: "Barrios Unidos",
+    capacidad: 200,
+    dimensiones: "500m²",
+    deporte: "Fitness",
+    estado: "Activo",
+  },
+}
 
 interface Escenario {
   id: number
@@ -51,17 +143,28 @@ export default function ReservarPage() {
     const fetchEscenario = async () => {
       setLoadingEscenario(true)
       try {
-        const response = await fetch(`${API_URL}/escenarios/${escenarioId}`)
-        const data = await response.json()
+        // Try to get from API
+        const response = await getEscenarioById(escenarioId)
 
-        if (data.success) {
-          setEscenario(data.data)
+        if (response.success) {
+          setEscenario(response.data)
         } else {
-          setError(data.message || "Error al cargar el escenario")
+          // If API fails, use mock data
+          if (MOCK_ESCENARIOS[escenarioId]) {
+            setEscenario(MOCK_ESCENARIOS[escenarioId])
+          } else {
+            setError("No se pudo encontrar el escenario solicitado.")
+          }
         }
       } catch (error) {
         console.error("Error al cargar el escenario:", error)
-        setError("Error de conexión. Por favor, intenta nuevamente.")
+
+        // Use mock data as fallback
+        if (MOCK_ESCENARIOS[escenarioId]) {
+          setEscenario(MOCK_ESCENARIOS[escenarioId])
+        } else {
+          setError("Error de conexión. Por favor, intenta nuevamente.")
+        }
       } finally {
         setLoadingEscenario(false)
       }

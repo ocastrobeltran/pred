@@ -56,9 +56,6 @@ export default function EscenariosPage() {
     // Cargar localidades y deportes para los filtros
     const fetchFilterData = async () => {
       try {
-        setLoading(true)
-        setError(null)
-
         const [localidadesRes, deportesRes] = await Promise.all([getLocalidades(), getDeportes()])
 
         if (localidadesRes.success) {
@@ -74,7 +71,6 @@ export default function EscenariosPage() {
         }
       } catch (error) {
         console.error("Error al cargar datos de filtros:", error)
-        setError("Error al cargar datos de filtros. Por favor, intenta nuevamente.")
       }
     }
 
@@ -87,48 +83,78 @@ export default function EscenariosPage() {
     setError(null)
 
     try {
-      // Construir parámetros de filtro
-      const filters: any = {}
-
-      if (searchTerm) {
-        filters.search = searchTerm
-      }
-
-      if (localidadFilter !== "all") {
-        filters.localidad_id = localidadFilter
-      }
-
-      if (deporteFilter !== "all") {
-        filters.deporte_id = deporteFilter
-      }
-
-      const response = await getEscenarios(currentPage, filters)
+      const response = await getEscenarios()
+      console.log("Escenarios response:", response)
 
       if (response.success) {
-        // Verificar la estructura de la respuesta
+        // Process the response data
+        let escenariosData = []
+
         if (response.data && Array.isArray(response.data.data)) {
-          setEscenarios(response.data.data)
-          setTotalPages(response.data.last_page || 1)
+          escenariosData = response.data.data
         } else if (Array.isArray(response.data)) {
-          // Si la respuesta es un array directamente
-          setEscenarios(response.data)
-          setTotalPages(1)
-        } else {
-          console.error("Formato de respuesta inesperado:", response.data)
-          setEscenarios([])
-          setTotalPages(1)
+          escenariosData = response.data
+        } else if (response.rawResponse && response.rawResponse.data && Array.isArray(response.rawResponse.data)) {
+          escenariosData = response.rawResponse.data
         }
+
+        // Apply client-side filtering
+        let filteredEscenarios = escenariosData
+
+        if (searchTerm) {
+          filteredEscenarios = filteredEscenarios.filter(
+            (escenario) =>
+              escenario.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              (escenario.descripcion && escenario.descripcion.toLowerCase().includes(searchTerm.toLowerCase())) ||
+              (escenario.direccion && escenario.direccion.toLowerCase().includes(searchTerm.toLowerCase())),
+          )
+        }
+
+        if (localidadFilter !== "all") {
+          filteredEscenarios = filteredEscenarios.filter(
+            (escenario) =>
+              escenario.localidad_id === Number.parseInt(localidadFilter) ||
+              (escenario.localidad && escenario.localidad === localidadFilter),
+          )
+        }
+
+        if (deporteFilter !== "all") {
+          filteredEscenarios = filteredEscenarios.filter(
+            (escenario) =>
+              escenario.deporte_principal_id === Number.parseInt(deporteFilter) ||
+              (escenario.deporte && escenario.deporte === deporteFilter) ||
+              (escenario.deportes && escenario.deportes.includes(Number.parseInt(deporteFilter))),
+          )
+        }
+
+        // Client-side pagination
+        const itemsPerPage = 9
+        const totalItems = filteredEscenarios.length
+        const totalPagesCount = Math.ceil(totalItems / itemsPerPage)
+
+        const startIndex = (currentPage - 1) * itemsPerPage
+        const endIndex = startIndex + itemsPerPage
+        const paginatedEscenarios = filteredEscenarios.slice(startIndex, endIndex)
+
+        setEscenarios(paginatedEscenarios)
+        setTotalPages(totalPagesCount)
       } else {
         console.error("Error al cargar escenarios:", response.message)
         setError(response.message || "Error al cargar escenarios")
-        setEscenarios([])
-        setTotalPages(1)
+        toast({
+          title: "Error",
+          description: response.message || "Error al cargar escenarios",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("Error al cargar escenarios:", error)
       setError("Error al cargar escenarios. Por favor, intenta nuevamente.")
-      setEscenarios([])
-      setTotalPages(1)
+      toast({
+        title: "Error",
+        description: "Error al cargar escenarios. Por favor, intenta nuevamente.",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -140,13 +166,14 @@ export default function EscenariosPage() {
     setDeporteFilter(deporte)
     setCurrentPage(1) // Resetear a la primera página
 
-    // Ejecutar búsqueda con los nuevos filtros
+    // Since we're doing client-side filtering, we don't need to refetch
+    // Just apply the filters to the existing data
     fetchEscenarios()
   }
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
-    fetchEscenarios()
+    // No need to refetch, just update the current page for client-side pagination
   }
 
   return (

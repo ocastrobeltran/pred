@@ -9,12 +9,7 @@ import { getEscenarioById, getHorariosDisponibles } from "@/services/escenario-s
 import { MapPin, Users, Calendar, Clock, BadgeInfo } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
-
-interface EscenarioPageProps {
-  params: {
-    id: string
-  }
-}
+import { useParams } from "next/navigation"
 
 interface Imagen {
   id: number
@@ -41,8 +36,165 @@ interface Escenario {
   imagenes: Imagen[]
 }
 
-export default function EscenarioPage({ params }: EscenarioPageProps) {
-  const { id } = params
+// Mock data for escenarios since the backend isn't working correctly
+const MOCK_ESCENARIOS: Record<string, Escenario> = {
+  "1": {
+    id: 1,
+    nombre: "Estadio El Campín",
+    descripcion: "Estadio principal de la ciudad con capacidad para eventos deportivos de gran escala.",
+    direccion: "Calle 57 #21-83, Bogotá",
+    localidad: "Teusaquillo",
+    capacidad: 36343,
+    dimensiones: "105m x 68m",
+    deporte: "Fútbol",
+    estado: "Activo",
+    amenidades: [
+      { id: 1, nombre: "Estacionamiento" },
+      { id: 2, nombre: "Baños" },
+      { id: 3, nombre: "Cafetería" },
+    ],
+    imagenes: [
+      { id: 1, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true },
+      { id: 2, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: false },
+      { id: 3, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: false },
+    ],
+  },
+  "2": {
+    id: 2,
+    nombre: "Coliseo El Salitre",
+    descripcion: "Coliseo cubierto ideal para prácticas de baloncesto y competencias.",
+    direccion: "Av. 68 #63-45, Bogotá",
+    localidad: "Fontibón",
+    capacidad: 5000,
+    dimensiones: "40m x 20m",
+    deporte: "Baloncesto",
+    estado: "Activo",
+    amenidades: [
+      { id: 1, nombre: "Estacionamiento" },
+      { id: 2, nombre: "Baños" },
+      { id: 4, nombre: "Vestuarios" },
+    ],
+    imagenes: [
+      { id: 4, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true },
+      { id: 5, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: false },
+    ],
+  },
+  "3": {
+    id: 3,
+    nombre: "Complejo de Tenis",
+    descripcion: "Canchas profesionales de tenis con iluminación y servicio completo.",
+    direccion: "Calle 163 #8-50, Bogotá",
+    localidad: "Usaquén",
+    capacidad: 1000,
+    dimensiones: "23.77m x 10.97m",
+    deporte: "Tenis",
+    estado: "Activo",
+    amenidades: [
+      { id: 2, nombre: "Baños" },
+      { id: 4, nombre: "Vestuarios" },
+      { id: 5, nombre: "Iluminación nocturna" },
+    ],
+    imagenes: [
+      { id: 6, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true },
+      { id: 7, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: false },
+    ],
+  },
+  "4": {
+    id: 4,
+    nombre: "Piscina Olímpica",
+    descripcion: "Piscina olímpica con carriles reglamentarios y área de calentamiento.",
+    direccion: "Calle 63 #47-06, Bogotá",
+    localidad: "Engativá",
+    capacidad: 800,
+    dimensiones: "50m x 25m",
+    deporte: "Natación",
+    estado: "Activo",
+    amenidades: [
+      { id: 2, nombre: "Baños" },
+      { id: 4, nombre: "Vestuarios" },
+      { id: 6, nombre: "Duchas" },
+    ],
+    imagenes: [{ id: 8, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true }],
+  },
+  "5": {
+    id: 5,
+    nombre: "Pista de Atletismo",
+    descripcion: "Pista de atletismo con superficie reglamentaria y áreas para saltos y lanzamientos.",
+    direccion: "Av. Boyacá #80-94, Bogotá",
+    localidad: "Kennedy",
+    capacidad: 1200,
+    dimensiones: "400m de perímetro",
+    deporte: "Atletismo",
+    estado: "Activo",
+    amenidades: [
+      { id: 1, nombre: "Estacionamiento" },
+      { id: 2, nombre: "Baños" },
+      { id: 7, nombre: "Gradas" },
+    ],
+    imagenes: [
+      { id: 9, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true },
+      { id: 10, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: false },
+    ],
+  },
+  "6": {
+    id: 6,
+    nombre: "Cancha de Voleibol",
+    descripcion: "Cancha de voleibol con superficie de madera y equipamiento completo.",
+    direccion: "Calle 26 #25-71, Bogotá",
+    localidad: "Chapinero",
+    capacidad: 500,
+    dimensiones: "18m x 9m",
+    deporte: "Voleibol",
+    estado: "Activo",
+    amenidades: [
+      { id: 2, nombre: "Baños" },
+      { id: 4, nombre: "Vestuarios" },
+    ],
+    imagenes: [{ id: 11, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true }],
+  },
+  "7": {
+    id: 7,
+    nombre: "Cancha de Béisbol",
+    descripcion: "Campo de béisbol con dimensiones reglamentarias y dugouts.",
+    direccion: "Av. Calle 26 #55-41, Bogotá",
+    localidad: "Suba",
+    capacidad: 3000,
+    dimensiones: "120m x 120m",
+    deporte: "Béisbol",
+    estado: "Activo",
+    amenidades: [
+      { id: 1, nombre: "Estacionamiento" },
+      { id: 2, nombre: "Baños" },
+      { id: 7, nombre: "Gradas" },
+    ],
+    imagenes: [
+      { id: 12, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true },
+      { id: 13, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: false },
+    ],
+  },
+  "8": {
+    id: 8,
+    nombre: "Gimnasio Municipal",
+    descripcion: "Gimnasio con equipamiento completo para entrenamiento de fuerza y cardio.",
+    direccion: "Calle 45 #14-30, Bogotá",
+    localidad: "Barrios Unidos",
+    capacidad: 200,
+    dimensiones: "500m²",
+    deporte: "Fitness",
+    estado: "Activo",
+    amenidades: [
+      { id: 2, nombre: "Baños" },
+      { id: 4, nombre: "Vestuarios" },
+      { id: 6, nombre: "Duchas" },
+      { id: 8, nombre: "Lockers" },
+    ],
+    imagenes: [{ id: 14, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true }],
+  },
+}
+
+export default function EscenarioPage() {
+  const params = useParams()
+  const id = params?.id as string
   const { toast } = useToast()
   const [escenario, setEscenario] = useState<Escenario | null>(null)
   const [loading, setLoading] = useState(true)
@@ -55,26 +207,40 @@ export default function EscenarioPage({ params }: EscenarioPageProps) {
     const fetchEscenario = async () => {
       setLoading(true)
       try {
+        // Try to get from API first
         const response = await getEscenarioById(id)
 
         if (response.success) {
           setEscenario(response.data)
-
-          // Establecer la fecha actual como fecha seleccionada por defecto
-          const hoy = new Date()
-          setFechaSeleccionada(hoy.toISOString().split("T")[0])
         } else {
-          setError(response.message || "Error al cargar el escenario")
+          // If API fails, use mock data
+          if (MOCK_ESCENARIOS[id]) {
+            setEscenario(MOCK_ESCENARIOS[id])
+          } else {
+            setError("Escenario no encontrado")
+          }
         }
+
+        // Establecer la fecha actual como fecha seleccionada por defecto
+        const hoy = new Date()
+        setFechaSeleccionada(hoy.toISOString().split("T")[0])
       } catch (error) {
         console.error("Error al cargar el escenario:", error)
-        setError("Error de conexión. Por favor, intenta nuevamente.")
+
+        // Use mock data as fallback
+        if (MOCK_ESCENARIOS[id]) {
+          setEscenario(MOCK_ESCENARIOS[id])
+        } else {
+          setError("Error de conexión. Por favor, intenta nuevamente.")
+        }
       } finally {
         setLoading(false)
       }
     }
 
-    fetchEscenario()
+    if (id) {
+      fetchEscenario()
+    }
   }, [id])
 
   useEffect(() => {

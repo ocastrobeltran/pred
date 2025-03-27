@@ -1,7 +1,7 @@
 // Configuración de la aplicación
 
 // URL de la API - Asegúrate de que NEXT_PUBLIC_API_URL esté configurada en tus variables de entorno
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/pred-backend/api"
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://pred-backend.onrender.com/pred-backend/api"
 
 // Configuración de navegación principal del dashboard
 export const MAIN_NAV = [
@@ -148,45 +148,4 @@ export const MAIN_NAV = [
     roles: [1], // Administradores
   },
 ]
-
-// Rutas de la API
-export const API_ROUTES = {
-  // Auth
-  LOGIN: "/auth/login",
-  REGISTER: "/auth/register",
-  ME: "/auth/me",
-
-  // Escenarios
-  ESCENARIOS: "/escenarios",
-  ESCENARIO_BY_ID: (id: string | number) => `/escenarios/${id}`,
-  ESCENARIOS_LOCALIDADES: "/escenarios/localidades",
-  ESCENARIOS_DEPORTES: "/escenarios/deportes",
-  AMENIDADES: "/amenidades",
-  HORARIOS_DISPONIBLES: (id: string | number, fecha: string) => `/escenarios/${id}/horarios-disponibles?fecha=${fecha}`,
-  VERIFICAR_DISPONIBILIDAD: "/escenarios/verificar-disponibilidad",
-
-  // Solicitudes
-  SOLICITUDES: "/solicitudes",
-  SOLICITUD_BY_ID: (id: string | number) => `/solicitudes/${id}`,
-  CAMBIAR_ESTADO_SOLICITUD: (id: string | number) => `/solicitudes/${id}/cambiar-estado`,
-  BUSCAR_SOLICITUD: (codigo: string) => `/solicitudes/buscar?codigo=${codigo}`,
-  ESTADOS_SOLICITUD: "/solicitudes/estados",
-  PROPOSITOS: "/propositos",
-
-  // Notificaciones
-  NOTIFICACIONES: "/notificaciones",
-  MARCAR_LEIDA: (id: string | number) => `/notificaciones/${id}/marcar-leida`,
-  MARCAR_TODAS_LEIDAS: "/notificaciones/marcar-todas-leidas",
-  CONTAR_NO_LEIDAS: "/notificaciones/contar-no-leidas",
-
-  // Usuarios
-  USUARIOS: "/usuarios",
-  USUARIO_BY_ID: (id: string | number) => `/usuarios/${id}`,
-  CAMBIAR_PASSWORD: "/usuarios/cambiar-password",
-  ROLES: "/usuarios/roles",
-
-  // Archivos
-  UPLOAD_ARCHIVO: "/archivos/upload",
-  DELETE_ARCHIVO: "/archivos",
-}
 

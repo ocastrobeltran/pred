@@ -1,8 +1,6 @@
 import { API_URL } from "@/lib/config"
 
-/**
- * Función base para realizar peticiones a la API con autenticación
- */
+// Modify the fetchWithAuth function to handle the backend's routing limitations
 export async function fetchWithAuth(endpoint: string, options: RequestInit = {}) {
   // Obtener el token del localStorage
   const token = typeof window !== "undefined" ? localStorage.getItem("pred_token") : null
@@ -15,9 +13,13 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
   }
 
   // Construir la URL completa correctamente
-  const url = `${API_URL}${endpoint}`
+  const url = `${API_URL}${endpoint.startsWith("/") ? endpoint : "/" + endpoint}`
 
-  console.log(`Fetching: ${url}`) // Para depuración
+  console.log(`Fetching: ${url}`, {
+    method: options.method || "GET",
+    headers,
+    body: options.body ? JSON.parse(options.body as string) : undefined,
+  }) // Enhanced debugging
 
   try {
     // Realizar la petición
@@ -25,6 +27,23 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
       ...options,
       headers,
     })
+
+    // Log the raw response for debugging
+    console.log(`Response status: ${response.status}`)
+
+    // Clone the response to read it twice
+    const responseClone = response.clone()
+    const rawText = await responseClone.text()
+    console.log(`Raw response: ${rawText.substring(0, 500)}${rawText.length > 500 ? "..." : ""}`)
+
+    // Try to parse as JSON if possible
+    let data
+    try {
+      data = JSON.parse(rawText)
+    } catch (e) {
+      console.log("Response is not valid JSON")
+      data = rawText
+    }
 
     // Si la respuesta no es exitosa, manejar el error
     if (!response.ok) {
@@ -35,34 +54,22 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
         }
       }
 
-      // Intentar obtener el mensaje de error del cuerpo de la respuesta
-      let errorMessage = `Error HTTP: ${response.status}`
-      try {
-        const errorData = await response.json()
-        errorMessage = errorData.message || errorMessage
-      } catch (e) {
-        // Si no se puede parsear como JSON, usar el texto de la respuesta
-        try {
-          errorMessage = await response.text()
-        } catch (e2) {
-          // Si todo falla, usar el mensaje genérico
-        }
+      return {
+        success: false,
+        message: data.message || `Error HTTP: ${response.status}`,
+        data: null,
+        status: response.status,
+        rawResponse: data,
       }
-
-      throw new Error(errorMessage)
     }
 
-    // Verificar si la respuesta es JSON
-    const contentType = response.headers.get("content-type")
-    if (contentType && contentType.indexOf("application/json") !== -1) {
-      return await response.json()
-    } else {
-      // Si la respuesta no es JSON, devolver el texto
-      return {
-        success: true,
-        message: "Operación exitosa",
-        data: await response.text(),
-      }
+    // Return a standardized response
+    return {
+      success: true,
+      message: data.message || "Operación exitosa",
+      data: data.data || data,
+      status: response.status,
+      rawResponse: data,
     }
   } catch (error) {
     console.error("Error en fetchWithAuth:", error)
@@ -72,6 +79,8 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
       success: false,
       message: error instanceof Error ? error.message : "Error desconocido",
       data: null,
+      status: 0,
+      error,
     }
   }
 }
