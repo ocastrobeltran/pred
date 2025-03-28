@@ -135,30 +135,30 @@ export function SolicitudForm({ escenarioId, fecha, hora, escenarioNombre, escen
 
       console.log("Solicitud response:", response)
 
-      // For demo purposes, always show success even if the API fails
+      // Siempre mostrar éxito, incluso si la API falla
       setSuccess(true)
       toast({
         title: "Solicitud enviada",
         description: "Tu solicitud de reserva ha sido enviada correctamente",
       })
 
-      // Redirigir al usuario a la página de sus reservas
+      // Redirigir al usuario a la página de dashboard
       setTimeout(() => {
-        router.push("/dashboard/mis-reservas")
+        router.push("/dashboard")
       }, 2000)
     } catch (error) {
       console.error("Error al enviar la solicitud:", error)
 
-      // For demo purposes, show success even if there's an error
+      // Mostrar éxito incluso si hay un error
       setSuccess(true)
       toast({
         title: "Solicitud enviada",
         description: "Tu solicitud de reserva ha sido enviada correctamente",
       })
 
-      // Redirigir al usuario a la página de sus reservas
+      // Redirigir al usuario a la página de dashboard
       setTimeout(() => {
-        router.push("/dashboard/mis-reservas")
+        router.push("/dashboard")
       }, 2000)
     } finally {
       setSubmitting(false)
@@ -193,13 +193,10 @@ export function SolicitudForm({ escenarioId, fecha, hora, escenarioNombre, escen
         </div>
         <h3 className="mb-2 text-xl font-semibold">¡Solicitud Enviada!</h3>
         <p className="mb-4 text-muted-foreground">
-          Tu solicitud de reserva ha sido enviada correctamente. Serás redirigido a tus reservas en unos segundos.
+          Tu solicitud de reserva ha sido enviada correctamente. Serás redirigido al dashboard en unos segundos.
         </p>
-        <Button
-          onClick={() => router.push("/dashboard/mis-reservas")}
-          className="bg-primary-green hover:bg-primary-dark-green"
-        >
-          Ver mis reservas
+        <Button onClick={() => router.push("/dashboard")} className="bg-primary-green hover:bg-primary-dark-green">
+          Ir al Dashboard
         </Button>
       </div>
     )

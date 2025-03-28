@@ -10,6 +10,7 @@ import { MapPin, Users, Calendar, Clock, BadgeInfo } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { useParams } from "next/navigation"
+import { SiteHeader } from "@/components/layout/site-header"
 
 interface Imagen {
   id: number
@@ -40,157 +41,149 @@ interface Escenario {
 const MOCK_ESCENARIOS: Record<string, Escenario> = {
   "1": {
     id: 1,
-    nombre: "Estadio El Campín",
-    descripcion: "Estadio principal de la ciudad con capacidad para eventos deportivos de gran escala.",
-    direccion: "Calle 57 #21-83, Bogotá",
-    localidad: "Teusaquillo",
-    capacidad: 36343,
+    nombre: "Estadio Jaime Morón",
+    descripcion:
+      "El Estadio Jaime Morón León es el principal escenario deportivo para la práctica del fútbol en la ciudad de Cartagena. Cuenta con una capacidad para 16.000 espectadores, césped natural y graderías techadas.",
+    direccion: "Barrio Olaya Herrera, Cartagena",
+    localidad: "Olaya Herrera",
+    capacidad: 16000,
     dimensiones: "105m x 68m",
     deporte: "Fútbol",
-    estado: "Activo",
-    amenidades: [
-      { id: 1, nombre: "Estacionamiento" },
-      { id: 2, nombre: "Baños" },
-      { id: 3, nombre: "Cafetería" },
-    ],
+    estado: "disponible",
+    amenidades: [],
     imagenes: [
-      { id: 1, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true },
-      { id: 2, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: false },
-      { id: 3, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: false },
+      { id: 1, url_imagen: "estadio_jaime_moron_1.jpg", es_principal: true },
+      { id: 2, url_imagen: "estadio_jaime_moron_2.jpg", es_principal: false },
+      { id: 3, url_imagen: "estadio_jaime_moron_3.jpg", es_principal: false },
     ],
   },
   "2": {
     id: 2,
-    nombre: "Coliseo El Salitre",
-    descripcion: "Coliseo cubierto ideal para prácticas de baloncesto y competencias.",
-    direccion: "Av. 68 #63-45, Bogotá",
-    localidad: "Fontibón",
-    capacidad: 5000,
-    dimensiones: "40m x 20m",
-    deporte: "Baloncesto",
-    estado: "Activo",
-    amenidades: [
-      { id: 1, nombre: "Estacionamiento" },
-      { id: 2, nombre: "Baños" },
-      { id: 4, nombre: "Vestuarios" },
-    ],
+    nombre: "Estadio de Béisbol Once de Noviembre",
+    descripcion:
+      "Estadio de béisbol con capacidad para 12.000 espectadores, iluminación nocturna y palcos VIP.",
+    direccion: "Centro, Cartagena",
+    localidad: "Centro",
+    capacidad: 12000,
+    dimensiones: "120m x 120m",
+    deporte: "Béisbol",
+    estado: "disponible",
+    amenidades: [],
     imagenes: [
-      { id: 4, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true },
-      { id: 5, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: false },
+      { id: 4, url_imagen: "estadio_beisbol_1.jpg", es_principal: true },
+      { id: 5, url_imagen: "estadio_beisbol_2.jpg", es_principal: false },
+      { id: 6, url_imagen: "estadio_beisbol_3.jpg", es_principal: false },
     ],
   },
   "3": {
     id: 3,
-    nombre: "Complejo de Tenis",
-    descripcion: "Canchas profesionales de tenis con iluminación y servicio completo.",
-    direccion: "Calle 163 #8-50, Bogotá",
-    localidad: "Usaquén",
+    nombre: "Complejo Acuático Jaime González Johnson",
+    descripcion:
+      "Complejo con piscina olímpica de 50 metros, piscina de clavados y áreas de entrenamiento.",
+    direccion: "Centro, Cartagena",
+    localidad: "Centro",
     capacidad: 1000,
-    dimensiones: "23.77m x 10.97m",
-    deporte: "Tenis",
-    estado: "Activo",
-    amenidades: [
-      { id: 2, nombre: "Baños" },
-      { id: 4, nombre: "Vestuarios" },
-      { id: 5, nombre: "Iluminación nocturna" },
-    ],
+    dimensiones: "50m x 25m",
+    deporte: "Natación",
+    estado: "disponible",
+    amenidades: [],
     imagenes: [
-      { id: 6, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true },
-      { id: 7, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: false },
+      { id: 7, url_imagen: "complejo_acuatico_1.jpg", es_principal: true },
+      { id: 8, url_imagen: "complejo_acuatico_2.jpg", es_principal: false },
+      { id: 9, url_imagen: "complejo_acuatico_3.jpg", es_principal: false },
     ],
   },
   "4": {
     id: 4,
-    nombre: "Piscina Olímpica",
-    descripcion: "Piscina olímpica con carriles reglamentarios y área de calentamiento.",
-    direccion: "Calle 63 #47-06, Bogotá",
-    localidad: "Engativá",
-    capacidad: 800,
-    dimensiones: "50m x 25m",
-    deporte: "Natación",
-    estado: "Activo",
-    amenidades: [
-      { id: 2, nombre: "Baños" },
-      { id: 4, nombre: "Vestuarios" },
-      { id: 6, nombre: "Duchas" },
+    nombre: "Pista de Atletismo Campo Elías Gutiérrez",
+    descripcion:
+      "Pista de atletismo con superficie sintética, 8 carriles y áreas para saltos y lanzamientos.",
+    direccion: "Centro, Cartagena",
+    localidad: "Centro",
+    capacidad: 3000,
+    dimensiones: "400m",
+    deporte: "Atletismo",
+    estado: "disponible",
+    amenidades: [],
+    imagenes: [
+      { id: 10, url_imagen: "pista_atletismo_1.jpg", es_principal: true },
+      { id: 11, url_imagen: "pista_atletismo_2.jpg", es_principal: false },
+      { id: 12, url_imagen: "pista_atletismo_3.jpg", es_principal: false },
     ],
-    imagenes: [{ id: 8, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true }],
   },
   "5": {
     id: 5,
-    nombre: "Pista de Atletismo",
-    descripcion: "Pista de atletismo con superficie reglamentaria y áreas para saltos y lanzamientos.",
-    direccion: "Av. Boyacá #80-94, Bogotá",
-    localidad: "Kennedy",
-    capacidad: 1200,
-    dimensiones: "400m de perímetro",
-    deporte: "Atletismo",
-    estado: "Activo",
-    amenidades: [
-      { id: 1, nombre: "Estacionamiento" },
-      { id: 2, nombre: "Baños" },
-      { id: 7, nombre: "Gradas" },
-    ],
+    nombre: "Coliseo de Combate y Gimnasia",
+    descripcion:
+      "Coliseo especializado para deportes de combate y gimnasia con áreas de entrenamiento.",
+    direccion: "Centro, Cartagena",
+    localidad: "Centro",
+    capacidad: 2000,
+    dimensiones: "40m x 30m",
+    deporte: "Levantamiento de pesas",
+    estado: "disponible",
+    amenidades: [],
     imagenes: [
-      { id: 9, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true },
-      { id: 10, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: false },
+      { id: 13, url_imagen: "coliseo_combate_1.jpg", es_principal: true },
+      { id: 14, url_imagen: "coliseo_combate_2.jpg", es_principal: false },
+      { id: 15, url_imagen: "coliseo_combate_3.jpg", es_principal: false },
     ],
   },
   "6": {
     id: 6,
-    nombre: "Cancha de Voleibol",
-    descripcion: "Cancha de voleibol con superficie de madera y equipamiento completo.",
-    direccion: "Calle 26 #25-71, Bogotá",
-    localidad: "Chapinero",
-    capacidad: 500,
-    dimensiones: "18m x 9m",
-    deporte: "Voleibol",
-    estado: "Activo",
-    amenidades: [
-      { id: 2, nombre: "Baños" },
-      { id: 4, nombre: "Vestuarios" },
+    nombre: "Estadio de Softbol de Chiquinquirá",
+    descripcion:
+      "Campo de softbol con gradas, iluminación y servicios complementarios para eventos deportivos.",
+    direccion: "Chiquinquirá, Cartagena",
+    localidad: "Chiquinquirá",
+    capacidad: 3000,
+    dimensiones: "80m x 80m",
+    deporte: "Softbol",
+    estado: "disponible",
+    amenidades: [],
+    imagenes: [
+      { id: 16, url_imagen: "estadio_softbol_1.jpg", es_principal: true },
+      { id: 17, url_imagen: "estadio_softbol_2.jpg", es_principal: false },
+      { id: 18, url_imagen: "estadio_softbol_3.jpg", es_principal: false },
     ],
-    imagenes: [{ id: 11, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true }],
   },
   "7": {
     id: 7,
-    nombre: "Cancha de Béisbol",
-    descripcion: "Campo de béisbol con dimensiones reglamentarias y dugouts.",
-    direccion: "Av. Calle 26 #55-41, Bogotá",
-    localidad: "Suba",
-    capacidad: 3000,
-    dimensiones: "120m x 120m",
-    deporte: "Béisbol",
-    estado: "Activo",
-    amenidades: [
-      { id: 1, nombre: "Estacionamiento" },
-      { id: 2, nombre: "Baños" },
-      { id: 7, nombre: "Gradas" },
-    ],
+    nombre: "Patinódromo de El Campestre",
+    descripcion:
+      "Pista de patinaje de velocidad con superficie especializada y graderías para espectadores.",
+    direccion: "El Campestre, Cartagena",
+    localidad: "El Campestre",
+    capacidad: 1500,
+    dimensiones: "200m",
+    deporte: "Patinaje",
+    estado: "disponible",
+    amenidades: [],
     imagenes: [
-      { id: 12, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true },
-      { id: 13, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: false },
+      { id: 19, url_imagen: "patinodromo_1.jpg", es_principal: true },
+      { id: 20, url_imagen: "patinodromo_2.jpg", es_principal: false },
+      { id: 21, url_imagen: "patinodromo_3.jpg", es_principal: false },
     ],
   },
   "8": {
     id: 8,
-    nombre: "Gimnasio Municipal",
-    descripcion: "Gimnasio con equipamiento completo para entrenamiento de fuerza y cardio.",
-    direccion: "Calle 45 #14-30, Bogotá",
-    localidad: "Barrios Unidos",
-    capacidad: 200,
-    dimensiones: "500m²",
-    deporte: "Fitness",
-    estado: "Activo",
-    amenidades: [
-      { id: 2, nombre: "Baños" },
-      { id: 4, nombre: "Vestuarios" },
-      { id: 6, nombre: "Duchas" },
-      { id: 8, nombre: "Lockers" },
+    nombre: "Coliseo Norton Madrid",
+    descripcion:
+      "Coliseo multiusos con cancha de baloncesto, voleibol y eventos culturales.",
+    direccion: "Centro, Cartagena",
+    localidad: "Centro",
+    capacidad: 4000,
+    dimensiones: "40m x 30m",
+    deporte: "Baloncesto",
+    estado: "disponible",
+    amenidades: [],
+    imagenes: [
+      { id: 22, url_imagen: "coliseo_norton_1.jpg", es_principal: true },
+      { id: 23, url_imagen: "coliseo_norton_2.jpg", es_principal: false },
+      { id: 24, url_imagen: "coliseo_norton_3.jpg", es_principal: false },
     ],
-    imagenes: [{ id: 14, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true }],
   },
-}
+};
 
 export default function EscenarioPage() {
   const params = useParams()
@@ -306,40 +299,7 @@ export default function EscenarioPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Barra de navegación */}
-      <header className="bg-white border-b">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-primary-green">PRED</span>
-          </Link>
-          <nav className="hidden space-x-4 md:flex">
-            <Link href="/" className="text-sm font-medium hover:text-primary-green">
-              Inicio
-            </Link>
-            <Link href="/escenarios" className="text-sm font-medium text-primary-green">
-              Escenarios
-            </Link>
-            <Link href="/#como-funciona" className="text-sm font-medium hover:text-primary-green">
-              Cómo Funciona
-            </Link>
-            <Link href="/#contacto" className="text-sm font-medium hover:text-primary-green">
-              Contacto
-            </Link>
-          </nav>
-          <div className="flex items-center gap-4">
-            <Link href="/login">
-              <Button
-                variant="outline"
-                className="border-primary-green text-primary-green hover:bg-primary-light-green"
-              >
-                Iniciar Sesión
-              </Button>
-            </Link>
-            <Link href="/register" className="hidden md:block">
-              <Button className="bg-primary-green hover:bg-primary-dark-green">Registrarse</Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* Contenido principal */}
       <main className="container mx-auto py-8 px-4">

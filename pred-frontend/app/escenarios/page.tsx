@@ -11,10 +11,10 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { getEscenarios, getLocalidades, getDeportes } from "@/services/escenario-service"
 import { useToast } from "@/hooks/use-toast"
+import { SiteHeader } from "@/components/layout/site-header"
 
 interface Escenario {
   id: number
@@ -179,35 +179,7 @@ export default function EscenariosPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Barra de navegación */}
-      <header className="bg-white border-b">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-primary">PRED</span>
-          </Link>
-          <nav className="hidden space-x-4 md:flex">
-            <Link href="/" className="text-sm font-medium hover:text-primary">
-              Inicio
-            </Link>
-            <Link href="/escenarios" className="text-sm font-medium text-primary">
-              Escenarios
-            </Link>
-            <Link href="/#como-funciona" className="text-sm font-medium hover:text-primary">
-              Cómo Funciona
-            </Link>
-            <Link href="/#contacto" className="text-sm font-medium hover:text-primary">
-              Contacto
-            </Link>
-          </nav>
-          <div className="flex items-center gap-4">
-            <Link href="/login">
-              <Button variant="outline">Iniciar Sesión</Button>
-            </Link>
-            <Link href="/register" className="hidden md:block">
-              <Button>Registrarse</Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* Contenido principal */}
       <main className="container mx-auto py-8 px-4">

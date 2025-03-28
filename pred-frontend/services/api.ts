@@ -1,7 +1,7 @@
 import { API_URL } from "@/lib/config"
 
-// Modify the fetchWithAuth function to handle the backend's routing limitations
-export async function fetchWithAuth(endpoint: string, options: RequestInit = {}) {
+// Modify the fetchWithAuth function to include better debugging and parameter handling
+export async function fetchWithAuth(endpoint: string, params: Record<string, any> = {}, options: RequestInit = {}) {
   // Obtener el token del localStorage
   const token = typeof window !== "undefined" ? localStorage.getItem("pred_token") : null
 
@@ -12,8 +12,18 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
     ...options.headers,
   }
 
+  // Extract query parameters from params object
+  const queryParams = { ...params }
+  delete queryParams.body // Remove body if it exists in params
+
+  // Build query string if there are parameters
+  const queryString =
+    Object.keys(queryParams).length > 0
+      ? "?" + new URLSearchParams(Object.entries(queryParams).map(([key, value]) => [key, String(value)])).toString()
+      : ""
+
   // Construir la URL completa correctamente
-  const url = `${API_URL}${endpoint.startsWith("/") ? endpoint : "/" + endpoint}`
+  const url = `${API_URL}${endpoint.startsWith("/") ? endpoint : "/" + endpoint}${queryString}`
 
   console.log(`Fetching: ${url}`, {
     method: options.method || "GET",
@@ -88,36 +98,48 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
 /**
  * Método GET
  */
-export async function get(endpoint: string) {
-  return fetchWithAuth(endpoint)
+export async function get(endpoint: string, params: Record<string, any> = {}) {
+  return fetchWithAuth(endpoint, params)
 }
 
 /**
  * Método POST
  */
 export async function post(endpoint: string, body: any) {
-  return fetchWithAuth(endpoint, {
-    method: "POST",
-    body: JSON.stringify(body),
-  })
+  return fetchWithAuth(
+    endpoint,
+    {},
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+  )
 }
 
 /**
  * Método PUT
  */
 export async function put(endpoint: string, body: any) {
-  return fetchWithAuth(endpoint, {
-    method: "PUT",
-    body: JSON.stringify(body),
-  })
+  return fetchWithAuth(
+    endpoint,
+    {},
+    {
+      method: "PUT",
+      body: JSON.stringify(body),
+    },
+  )
 }
 
 /**
  * Método DELETE
  */
 export async function del(endpoint: string) {
-  return fetchWithAuth(endpoint, {
-    method: "DELETE",
-  })
+  return fetchWithAuth(
+    endpoint,
+    {},
+    {
+      method: "DELETE",
+    },
+  )
 }
 

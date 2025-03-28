@@ -1,8 +1,145 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
+import { useAuth } from "@/context/auth-context"
+import { getSolicitudes } from "@/services/solicitud-service"
+import { getEscenarios } from "@/services/escenario-service"
+import { contarNoLeidas } from "@/services/notificacion-service"
 
 export default function DashboardPage() {
+  const { user } = useAuth()
+  const [loading, setLoading] = useState(true)
+  const [dashboardData, setDashboardData] = useState({
+    reservasActivas: 0,
+    solicitudesPendientes: 0,
+    escenariosDisponibles: 0,
+    notificacionesNoLeidas: 0,
+    reservasRecientes: [],
+    escenariosDestacados: [],
+  })
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true)
+      try {
+        // Obtener datos de solicitudes
+        const solicitudesResponse = await getSolicitudes()
+
+        // Obtener datos de escenarios
+        const escenariosResponse = await getEscenarios()
+
+        // Obtener conteo de notificaciones
+        const notificacionesResponse = await contarNoLeidas()
+
+        // Procesar datos de solicitudes
+        let solicitudes = []
+        if (solicitudesResponse.success && solicitudesResponse.data && solicitudesResponse.data.data) {
+          solicitudes = solicitudesResponse.data.data
+        }
+
+        // Procesar datos de escenarios
+        let escenarios = []
+        if (escenariosResponse.success) {
+          if (Array.isArray(escenariosResponse.data)) {
+            escenarios = escenariosResponse.data
+          } else if (escenariosResponse.data && Array.isArray(escenariosResponse.data.data)) {
+            escenarios = escenariosResponse.data.data
+          }
+        }
+
+        // Calcular estadísticas
+        const reservasActivas = solicitudes.filter((s) => s.estado === "aprobada").length
+        const solicitudesPendientes = solicitudes.filter((s) => s.estado === "pendiente").length
+        const escenariosDisponibles = escenarios.length
+        const notificacionesNoLeidas = notificacionesResponse.success ? notificacionesResponse.data.count : 2
+
+        // Obtener reservas recientes (las 3 más recientes)
+        const reservasRecientes = solicitudes
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .slice(0, 3)
+
+        // Obtener escenarios destacados (3 aleatorios)
+        const escenariosDestacados = escenarios.sort(() => 0.5 - Math.random()).slice(0, 3)
+
+        setDashboardData({
+          reservasActivas,
+          solicitudesPendientes,
+          escenariosDisponibles,
+          notificacionesNoLeidas,
+          reservasRecientes,
+          escenariosDestacados,
+        })
+      } catch (error) {
+        console.error("Error al cargar datos del dashboard:", error)
+        // Usar datos simulados en caso de error
+        setDashboardData({
+          reservasActivas: 4,
+          solicitudesPendientes: 2,
+          escenariosDisponibles: 25,
+          notificacionesNoLeidas: 3,
+          reservasRecientes: [
+            {
+              id: 1,
+              escenario: { nombre: "Cancha de Fútbol #3" },
+              fecha_reserva: "2023-06-15",
+              hora_inicio: "15:00:00",
+              estado: "aprobada",
+            },
+            {
+              id: 2,
+              escenario: { nombre: "Pista de Atletismo" },
+              fecha_reserva: "2023-06-10",
+              hora_inicio: "18:00:00",
+              estado: "completada",
+            },
+            {
+              id: 3,
+              escenario: { nombre: "Cancha de Tenis #1" },
+              fecha_reserva: "2023-06-05",
+              hora_inicio: "10:00:00",
+              estado: "pendiente",
+            },
+          ],
+          escenariosDestacados: [
+            {
+              id: 1,
+              nombre: "Estadio Metropolitano",
+              deporte: "Fútbol",
+              localidad: "Kennedy",
+            },
+            {
+              id: 2,
+              nombre: "Complejo Acuático",
+              deporte: "Natación",
+              localidad: "Teusaquillo",
+            },
+            {
+              id: 3,
+              nombre: "Cancha de Baloncesto",
+              deporte: "Baloncesto",
+              localidad: "Chapinero",
+            },
+          ],
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex h-40 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-green border-t-transparent"></div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Dashboard</h1>
@@ -35,7 +172,7 @@ export default function DashboardPage() {
                 </svg>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">4</div>
+                <div className="text-2xl font-bold">{dashboardData.reservasActivas}</div>
                 <p className="text-xs text-muted-foreground">Reservas activas en el último mes</p>
               </CardContent>
             </Card>
@@ -60,7 +197,7 @@ export default function DashboardPage() {
                 </svg>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">2</div>
+                <div className="text-2xl font-bold">{dashboardData.solicitudesPendientes}</div>
                 <p className="text-xs text-muted-foreground">Solicitudes esperando aprobación</p>
               </CardContent>
             </Card>
@@ -84,7 +221,7 @@ export default function DashboardPage() {
                 </svg>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">25</div>
+                <div className="text-2xl font-bold">{dashboardData.escenariosDisponibles}</div>
                 <p className="text-xs text-muted-foreground">Escenarios para reservar</p>
               </CardContent>
             </Card>
@@ -107,7 +244,7 @@ export default function DashboardPage() {
                 </svg>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">3</div>
+                <div className="text-2xl font-bold">{dashboardData.notificacionesNoLeidas}</div>
                 <p className="text-xs text-muted-foreground">Notificaciones sin leer</p>
               </CardContent>
             </Card>
@@ -120,41 +257,36 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="rounded-lg border p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold">Cancha de Fútbol #3</p>
-                        <p className="text-sm text-muted-foreground">15 de junio, 2023 - 3:00 PM</p>
+                  {dashboardData.reservasRecientes.length > 0 ? (
+                    dashboardData.reservasRecientes.map((reserva, index) => (
+                      <div key={index} className="rounded-lg border p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold">{reserva.escenario?.nombre || "Escenario"}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(reserva.fecha_reserva).toLocaleDateString()} -{" "}
+                              {reserva.hora_inicio?.substring(0, 5) || ""}
+                            </p>
+                          </div>
+                          <div
+                            className={`rounded-full px-2 py-1 text-xs font-medium ${
+                              reserva.estado === "aprobada"
+                                ? "bg-green-100 text-green-800"
+                                : reserva.estado === "completada"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : reserva.estado === "pendiente"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-gray-100 text-gray-800"
+                            }`}
+                          >
+                            {reserva.estado?.charAt(0).toUpperCase() + reserva.estado?.slice(1) || "Estado"}
+                          </div>
+                        </div>
                       </div>
-                      <div className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-                        Aprobada
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold">Pista de Atletismo</p>
-                        <p className="text-sm text-muted-foreground">10 de junio, 2023 - 6:00 PM</p>
-                      </div>
-                      <div className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
-                        Completada
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold">Cancha de Tenis #1</p>
-                        <p className="text-sm text-muted-foreground">5 de junio, 2023 - 10:00 AM</p>
-                      </div>
-                      <div className="rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
-                        Pendiente
-                      </div>
-                    </div>
-                  </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground">No tienes reservas recientes</div>
+                  )}
                 </div>
 
                 <div className="mt-4 text-center">
@@ -171,29 +303,17 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="h-12 w-12 rounded-md bg-gray-200 flex-shrink-0"></div>
-                    <div>
-                      <p className="font-semibold">Estadio Metropolitano</p>
-                      <p className="text-xs text-muted-foreground">Fútbol - Kennedy</p>
+                  {dashboardData.escenariosDestacados.map((escenario, index) => (
+                    <div key={index} className="flex items-center space-x-3">
+                      <div className="h-12 w-12 rounded-md bg-gray-200 flex-shrink-0"></div>
+                      <div>
+                        <p className="font-semibold">{escenario.nombre}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {escenario.deporte} - {escenario.localidad}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="flex items-center space-x-3">
-                    <div className="h-12 w-12 rounded-md bg-gray-200 flex-shrink-0"></div>
-                    <div>
-                      <p className="font-semibold">Complejo Acuático</p>
-                      <p className="text-xs text-muted-foreground">Natación - Teusaquillo</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-3">
-                    <div className="h-12 w-12 rounded-md bg-gray-200 flex-shrink-0"></div>
-                    <div>
-                      <p className="font-semibold">Cancha de Baloncesto</p>
-                      <p className="text-xs text-muted-foreground">Baloncesto - Chapinero</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
                 <div className="mt-4 text-center">

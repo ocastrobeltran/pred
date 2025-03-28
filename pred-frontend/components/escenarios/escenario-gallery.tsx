@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { MapPin } from "lucide-react"
 
 interface EscenarioGalleryProps {
@@ -9,7 +9,30 @@ interface EscenarioGalleryProps {
 }
 
 export function EscenarioGallery({ imagenes, nombre }: EscenarioGalleryProps) {
-  const [imagenActiva, setImagenActiva] = useState<string | null>(imagenes.length > 0 ? imagenes[0].url_imagen : null)
+  const [imagenActiva, setImagenActiva] = useState<string | null>(null)
+
+  // Asegurarse de que siempre haya al menos una imagen
+  useEffect(() => {
+    if (imagenes && imagenes.length > 0) {
+      // Buscar la imagen principal primero
+      const imagenPrincipal = imagenes.find((img) => img.es_principal)
+      if (imagenPrincipal) {
+        setImagenActiva(imagenPrincipal.url_imagen)
+      } else {
+        // Si no hay imagen principal, usar la primera
+        setImagenActiva(imagenes[0].url_imagen)
+      }
+    } else {
+      // Si no hay imágenes, usar un placeholder
+      setImagenActiva("/placeholder.svg?height=600&width=800")
+    }
+  }, [imagenes])
+
+  // Si no hay imágenes, crear un array con una imagen placeholder
+  const imagenesParaMostrar =
+    imagenes && imagenes.length > 0
+      ? imagenes
+      : [{ id: 0, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true }]
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-md">
@@ -23,9 +46,9 @@ export function EscenarioGallery({ imagenes, nombre }: EscenarioGalleryProps) {
         )}
       </div>
 
-      {imagenes.length > 0 && (
+      {imagenesParaMostrar.length > 0 && (
         <div className="grid grid-cols-5 gap-2">
-          {imagenes.map((imagen) => (
+          {imagenesParaMostrar.map((imagen) => (
             <div
               key={imagen.id}
               className={`aspect-square rounded-md overflow-hidden cursor-pointer border-2 ${

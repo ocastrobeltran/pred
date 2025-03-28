@@ -24,13 +24,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Comprobar si hay una sesión guardada al cargar la aplicación
   useEffect(() => {
-    const savedToken = localStorage.getItem("pred_token")
-    if (savedToken) {
-      setToken(savedToken)
-      fetchUser(savedToken)
-    } else {
-      setLoading(false)
+    const checkAuth = async () => {
+      const savedToken = localStorage.getItem("pred_token")
+      if (savedToken) {
+        setToken(savedToken)
+        await fetchUser(savedToken)
+      } else {
+        setLoading(false)
+      }
     }
+
+    checkAuth()
   }, [])
 
   // Obtener datos del usuario actual
@@ -45,11 +49,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Si hay un error, limpiar el token
         localStorage.removeItem("pred_token")
         setToken(null)
+        setUser(null)
       }
     } catch (error) {
       console.error("Error al obtener datos del usuario:", error)
       localStorage.removeItem("pred_token")
       setToken(null)
+      setUser(null)
     } finally {
       setLoading(false)
     }

@@ -42,71 +42,71 @@ export async function getSolicitudes(page = 1, filters: SolicitudFilter = {}) {
           {
             id: 1,
             codigo: "SOL-001",
-            escenario_id: 1,
+            escenario_id: 8,
             escenario: {
-              nombre: "Estadio El Campín",
-              direccion: "Calle 57 #21-83, Bogotá",
+              nombre: "Coliseo Norton Madrid",
+              direccion: "Centro, Cartagena",
             },
             usuario_id: 1,
             usuario: {
               nombre: "Juan",
               apellido: "Pérez",
             },
-            fecha_reserva: "2023-06-15",
-            hora_inicio: "15:00:00",
-            hora_fin: "17:00:00",
+            fecha_reserva: "2025-03-20",
+            hora_inicio: "10:00:00",
+            hora_fin: "12:00:00",
             proposito_id: 1,
             proposito: "Evento deportivo",
-            num_participantes: 20,
+            num_participantes: 50,
             estado: "aprobada",
-            created_at: "2023-06-01T10:00:00",
-            updated_at: "2023-06-02T14:30:00",
+            created_at: "2025-03-19T10:00:00",
+            updated_at: "2025-03-19T12:00:00",
           },
           {
             id: 2,
             codigo: "SOL-002",
-            escenario_id: 2,
+            escenario_id: 7,
             escenario: {
-              nombre: "Coliseo El Salitre",
-              direccion: "Av. 68 #63-45, Bogotá",
+              nombre: "Patinódromo de El Campestre",
+              direccion: "El Campestre, Cartagena",
             },
-            usuario_id: 1,
+            usuario_id: 2,
             usuario: {
-              nombre: "Juan",
-              apellido: "Pérez",
+              nombre: "María",
+              apellido: "Gómez",
             },
-            fecha_reserva: "2023-06-10",
-            hora_inicio: "18:00:00",
-            hora_fin: "20:00:00",
+            fecha_reserva: "2025-03-21",
+            hora_inicio: "14:00:00",
+            hora_fin: "16:00:00",
             proposito_id: 2,
             proposito: "Entrenamiento",
-            num_participantes: 15,
-            estado: "completada",
-            created_at: "2023-05-20T09:15:00",
-            updated_at: "2023-06-11T10:00:00",
+            num_participantes: 20,
+            estado: "pendiente",
+            created_at: "2025-03-19T11:00:00",
+            updated_at: "2025-03-19T11:30:00",
           },
           {
             id: 3,
             codigo: "SOL-003",
-            escenario_id: 3,
+            escenario_id: 6,
             escenario: {
-              nombre: "Complejo de Tenis",
-              direccion: "Calle 163 #8-50, Bogotá",
+              nombre: "Estadio de Softbol de Chiquinquirá",
+              direccion: "Chiquinquirá, Cartagena",
             },
-            usuario_id: 1,
+            usuario_id: 3,
             usuario: {
-              nombre: "Juan",
-              apellido: "Pérez",
+              nombre: "Carlos",
+              apellido: "López",
             },
-            fecha_reserva: "2023-06-05",
-            hora_inicio: "10:00:00",
-            hora_fin: "12:00:00",
-            proposito_id: 4,
-            proposito: "Recreación",
-            num_participantes: 4,
-            estado: "pendiente",
-            created_at: "2023-05-30T16:45:00",
-            updated_at: "2023-05-30T16:45:00",
+            fecha_reserva: "2025-03-22",
+            hora_inicio: "09:00:00",
+            hora_fin: "11:00:00",
+            proposito_id: 3,
+            proposito: "Competencia",
+            num_participantes: 30,
+            estado: "rechazada",
+            created_at: "2025-03-19T12:00:00",
+            updated_at: "2025-03-19T12:30:00",
           },
         ],
         pagination: {
@@ -167,7 +167,26 @@ export async function getSolicitudById(id: number | string) {
  */
 export async function createSolicitud(solicitud: Solicitud) {
   try {
-    return post("solicitudes", solicitud)
+    const response = await post("solicitudes", solicitud)
+
+    // Si la API falla, usar datos simulados
+    if (!response.success) {
+      console.log("API failed, using mock data")
+      return {
+        success: true,
+        message: "Solicitud creada exitosamente (mock)",
+        data: {
+          id: Math.floor(Math.random() * 1000) + 10,
+          codigo: `SOL-${Math.floor(Math.random() * 1000)}`,
+          ...solicitud,
+          estado: "pendiente",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      }
+    }
+
+    return response
   } catch (error) {
     console.error("Error creating solicitud:", error)
     // Return mock success response

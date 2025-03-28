@@ -44,7 +44,7 @@ export async function getEscenarios() {
 export async function getEscenarioById(id: number | string) {
   try {
     // Try to get from API
-    const response = await get(`escenarios/${id}`)
+    const response = await get(`escenarios/view/${id}`)
     return response
   } catch (error) {
     console.error("Error fetching escenario:", error)

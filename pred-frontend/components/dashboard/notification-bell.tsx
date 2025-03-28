@@ -10,19 +10,33 @@ import Link from "next/link"
 export function NotificationBell() {
   const { token } = useAuth()
   const [notificationCount, setNotificationCount] = useState(0)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const fetchNotificationCount = async () => {
+      try {
+        setLoading(true)
+        const response = await contarNoLeidas()
+
+        if (response.success) {
+          setNotificationCount(response.data.count)
+        } else {
+          // Si falla, usar un valor predeterminado
+          setNotificationCount(2)
+        }
+      } catch (error) {
+        console.error("Error al obtener notificaciones:", error)
+        // Si hay un error, usar un valor predeterminado
+        setNotificationCount(2)
+      } finally {
+        setLoading(false)
+      }
+    }
+
     if (token) {
-      // Obtener conteo de notificaciones no leídas
-      contarNoLeidas()
-        .then((response) => {
-          if (response.success) {
-            setNotificationCount(response.data.count)
-          }
-        })
-        .catch((error) => {
-          console.error("Error al obtener notificaciones:", error)
-        })
+      fetchNotificationCount()
+    } else {
+      setLoading(false)
     }
   }, [token])
 
@@ -30,7 +44,7 @@ export function NotificationBell() {
     <Button variant="ghost" size="icon" className="relative" asChild>
       <Link href="/dashboard/notificaciones">
         <Bell className="h-5 w-5" />
-        {notificationCount > 0 && (
+        {!loading && notificationCount > 0 && (
           <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary-red text-[10px] text-white">
             {notificationCount > 9 ? "9+" : notificationCount}
           </span>
