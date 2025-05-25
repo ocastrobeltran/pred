@@ -2,8 +2,9 @@
 
 import type React from "react"
 
+import { useEffect } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { MobileNav } from "@/components/dashboard/mobile-nav"
 import { UserNav } from "@/components/dashboard/user-nav"
 import { NotificationBell } from "@/components/dashboard/notification-bell"
@@ -18,7 +19,15 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { user, loading } = useAuth()
+
+    // Manejar redirección en useEffect para evitar problemas de hidratación
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push(`/login?redirect=${pathname}`)
+    }
+  }, [user, loading, pathname, router])
 
   // Si está cargando, mostrar pantalla de carga
   if (loading) {

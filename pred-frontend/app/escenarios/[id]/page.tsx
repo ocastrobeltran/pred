@@ -28,13 +28,19 @@ interface Escenario {
   nombre: string
   descripcion: string
   direccion: string
-  localidad: string
   capacidad: number
   dimensiones: string
-  deporte: string
   estado: string
-  amenidades: Amenidad[]
-  imagenes: Imagen[]
+  imagen_principal: string | null
+  localidad: {
+    id: number
+    nombre: string
+  }
+  deporte_principal: {
+    id: number
+    nombre: string
+    icono: string
+  }
 }
 
 // Mock data for escenarios since the backend isn't working correctly

@@ -34,7 +34,7 @@ export interface EscenarioFilter {
  * Note: We're not using pagination parameters in the URL to avoid routing issues
  */
 export async function getEscenarios() {
-  return get("escenarios")
+  return get("scenes")
 }
 
 /**

@@ -11,10 +11,19 @@ interface Escenario {
   nombre: string
   descripcion: string
   direccion: string
-  localidad: string
   capacidad: number
-  deporte: string
-  imagen: string | null
+  dimensiones: string
+  estado: string
+  imagen_principal: string | null
+  localidad: {
+    id: number
+    nombre: string
+  }
+  deporte_principal: {
+    id: number
+    nombre: string
+    icono: string
+  }
 }
 
 export default function Home() {
@@ -26,29 +35,23 @@ export default function Home() {
     const fetchEscenarios = async () => {
       try {
         setLoading(true)
-        const response = await getEscenarios(1, { estado: "activo" })
+        const response = await getEscenarios()
 
         if (response.success) {
-          // Verificar la estructura de la respuesta
-          if (response.data && Array.isArray(response.data.data)) {
-            // Tomar solo los primeros 3 escenarios
+          // The API returns data.data as the array of escenarios
+          if (response.data && response.data.data && Array.isArray(response.data.data)) {
+            // Take only the first 3 escenarios
             setEscenarios(response.data.data.slice(0, 3))
-          } else if (Array.isArray(response.data)) {
-            // Si la respuesta es un array directamente
-            setEscenarios(response.data.slice(0, 3))
           } else {
             console.error("Formato de respuesta inesperado:", response.data)
-            // Usar escenarios por defecto en caso de error
             setEscenarios(getDefaultEscenarios())
           }
         } else {
           console.error("Error al cargar escenarios:", response.message)
-          // Usar escenarios por defecto en caso de error
           setEscenarios(getDefaultEscenarios())
         }
       } catch (error) {
         console.error("Error al cargar escenarios:", error)
-        // Usar escenarios por defecto en caso de error
         setEscenarios(getDefaultEscenarios())
       } finally {
         setLoading(false)
@@ -291,19 +294,19 @@ export default function Home() {
                   <div key={escenario.id} className="bg-white rounded-lg shadow-md overflow-hidden">
                     <div className="h-48 bg-gray-200 relative">
                       <img
-                        src={escenario.imagen || "/placeholder.svg?height=300&width=400"}
+                        src={escenario.imagen_principal || "/placeholder.svg?height=300&width=400"}
                         alt={escenario.nombre}
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute top-2 right-2 bg-primary-green text-white px-2 py-1 rounded text-sm">
-                        {escenario.deporte}
+                        {escenario.deporte_principal.nombre}
                       </div>
                     </div>
                     <div className="p-4">
                       <h3 className="text-xl font-bold mb-2">{escenario.nombre}</h3>
                       <p className="text-gray-600 mb-4 line-clamp-2">{escenario.descripcion}</p>
                       <div className="flex justify-between items-center">
-                        <div className="text-sm text-gray-500">{escenario.localidad}</div>
+                        <div className="text-sm text-gray-500">{escenario.localidad.nombre}</div>
                         <Button className="bg-primary-green hover:bg-primary-dark-green" asChild>
                           <Link href={`/escenarios/${escenario.id}`}>Ver Detalles</Link>
                         </Button>

@@ -155,9 +155,19 @@ interface Escenario {
   nombre: string
   descripcion: string
   direccion: string
-  localidad: string
   capacidad: number
-  imagen: string | null
+  dimensiones: string
+  estado: string
+  imagen_principal: string | null
+  localidad: {
+    id: number
+    nombre: string
+  }
+  deporte_principal: {
+    id: number
+    nombre: string
+    icono: string
+  }
 }
 
 export default function ReservarPage() {

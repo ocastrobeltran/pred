@@ -9,6 +9,15 @@ import { getSolicitudes } from "@/services/solicitud-service"
 import { getEscenarios } from "@/services/escenario-service"
 import { contarNoLeidas } from "@/services/notificacion-service"
 
+// Función helper para renderizar datos de forma segura
+const safeRender = (data: any, fallback = "N/A") => {
+  if (data === null || data === undefined) return fallback
+  if (typeof data === 'object') {
+    return data.nombre || data.name || fallback
+  }
+  return String(data)
+}
+
 export default function DashboardPage() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
@@ -259,13 +268,15 @@ export default function DashboardPage() {
                 <div className="space-y-4">
                   {dashboardData.reservasRecientes.length > 0 ? (
                     dashboardData.reservasRecientes.map((reserva, index) => (
-                      <div key={index} className="rounded-lg border p-4">
+                      <div key={reserva.id || index} className="rounded-lg border p-4">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-semibold">{reserva.escenario?.nombre || "Escenario"}</p>
+                            <p className="font-semibold">
+                              {safeRender(reserva.escenario?.nombre, "Escenario")}
+                            </p>
                             <p className="text-sm text-muted-foreground">
-                              {new Date(reserva.fecha_reserva).toLocaleDateString()} -{" "}
-                              {reserva.hora_inicio?.substring(0, 5) || ""}
+                              {reserva.fecha_reserva ? new Date(reserva.fecha_reserva).toLocaleDateString() : "Fecha no disponible"} -{" "}
+                              {reserva.hora_inicio?.substring(0, 5) || "Hora no disponible"}
                             </p>
                           </div>
                           <div
@@ -279,7 +290,7 @@ export default function DashboardPage() {
                                     : "bg-gray-100 text-gray-800"
                             }`}
                           >
-                            {reserva.estado?.charAt(0).toUpperCase() + reserva.estado?.slice(1) || "Estado"}
+                            {safeRender(reserva.estado, "Estado")}
                           </div>
                         </div>
                       </div>
@@ -304,12 +315,12 @@ export default function DashboardPage() {
               <CardContent>
                 <div className="space-y-4">
                   {dashboardData.escenariosDestacados.map((escenario, index) => (
-                    <div key={index} className="flex items-center space-x-3">
+                    <div key={escenario.id || index} className="flex items-center space-x-3">
                       <div className="h-12 w-12 rounded-md bg-gray-200 flex-shrink-0"></div>
                       <div>
-                        <p className="font-semibold">{escenario.nombre}</p>
+                        <p className="font-semibold">{safeRender(escenario.nombre, "Escenario")}</p>
                         <p className="text-xs text-muted-foreground">
-                          {escenario.deporte} - {escenario.localidad}
+                          {safeRender(escenario.deporte, "Deporte")} - {safeRender(escenario.localidad, "Localidad")}
                         </p>
                       </div>
                     </div>

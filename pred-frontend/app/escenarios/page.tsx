@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { EscenarioCard } from "@/components/escenarios/escenario-card"
 import { EscenarioFilter } from "@/components/escenarios/escenario-filter"
 import {
@@ -21,10 +21,19 @@ interface Escenario {
   nombre: string
   descripcion: string
   direccion: string
-  localidad: string
   capacidad: number
-  deporte: string
-  imagen: string | null
+  dimensiones: string
+  estado: string
+  imagen_principal: string | null
+  localidad: {
+    id: number
+    nombre: string
+  }
+  deporte_principal: {
+    id: number
+    nombre: string
+    icono: string
+  }
 }
 
 interface Localidad {
@@ -37,143 +46,180 @@ interface Deporte {
   nombre: string
 }
 
+// Función para renderizar objetos de forma segura
+const safeRender = (value: any): string => {
+  if (typeof value === 'string') return value
+  if (typeof value === 'object' && value !== null && 'nombre' in value) {
+    return value.nombre
+  }
+  return ''
+}
+
+// Función para procesar datos de escenarios
+const processEscenarioData = (escenario: any): Escenario => {
+  return {
+    ...escenario,
+    localidad: {
+      id: escenario.localidad?.id || 0,
+      nombre: safeRender(escenario.localidad)
+    },
+    deporte_principal: {
+      id: escenario.deporte_principal?.id || 0,
+      nombre: safeRender(escenario.deporte_principal),
+      icono: escenario.deporte_principal?.icono || ''
+    }
+  }
+}
+
 export default function EscenariosPage() {
   const { toast } = useToast()
-  const [escenarios, setEscenarios] = useState<Escenario[]>([])
+  
+  // Estados para datos
+  const [allEscenarios, setAllEscenarios] = useState<Escenario[]>([])
   const [localidades, setLocalidades] = useState<Localidad[]>([])
   const [deportes, setDeportes] = useState<Deporte[]>([])
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Filtros
+  // Estados para filtros
   const [searchTerm, setSearchTerm] = useState("")
   const [localidadFilter, setLocalidadFilter] = useState("all")
   const [deporteFilter, setDeporteFilter] = useState("all")
 
-  useEffect(() => {
-    // Cargar localidades y deportes para los filtros
-    const fetchFilterData = async () => {
-      try {
-        const [localidadesRes, deportesRes] = await Promise.all([getLocalidades(), getDeportes()])
+  // Estados para paginación
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 6
 
+  // Cargar datos iniciales
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        // Cargar escenarios, localidades y deportes en paralelo
+        const [escenariosRes, localidadesRes, deportesRes] = await Promise.all([
+          getEscenarios(),
+          getLocalidades(),
+          getDeportes()
+        ])
+
+        // Procesar escenarios
+        if (escenariosRes.success) {
+          let escenariosData = []
+          
+          if (escenariosRes.data && Array.isArray(escenariosRes.data.data)) {
+            escenariosData = escenariosRes.data.data
+          } else if (Array.isArray(escenariosRes.data)) {
+            escenariosData = escenariosRes.data
+          }
+
+          // Procesar cada escenario para asegurar formato correcto
+          const processedEscenarios = escenariosData.map(processEscenarioData)
+          setAllEscenarios(processedEscenarios)
+        } else {
+          throw new Error(escenariosRes.message || "Error al cargar escenarios")
+        }
+
+        // Procesar localidades
         if (localidadesRes.success) {
           setLocalidades(localidadesRes.data || [])
         } else {
-          console.error("Error al cargar localidades:", localidadesRes.message)
+          console.warn("Error al cargar localidades:", localidadesRes.message)
         }
 
+        // Procesar deportes
         if (deportesRes.success) {
           setDeportes(deportesRes.data || [])
         } else {
-          console.error("Error al cargar deportes:", deportesRes.message)
+          console.warn("Error al cargar deportes:", deportesRes.message)
         }
+
       } catch (error) {
-        console.error("Error al cargar datos de filtros:", error)
-      }
-    }
-
-    fetchFilterData()
-    fetchEscenarios()
-  }, [])
-
-  const fetchEscenarios = async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      const response = await getEscenarios()
-      console.log("Escenarios response:", response)
-
-      if (response.success) {
-        // Process the response data
-        let escenariosData = []
-
-        if (response.data && Array.isArray(response.data.data)) {
-          escenariosData = response.data.data
-        } else if (Array.isArray(response.data)) {
-          escenariosData = response.data
-        } else if (response.rawResponse && response.rawResponse.data && Array.isArray(response.rawResponse.data)) {
-          escenariosData = response.rawResponse.data
-        }
-
-        // Apply client-side filtering
-        let filteredEscenarios = escenariosData
-
-        if (searchTerm) {
-          filteredEscenarios = filteredEscenarios.filter(
-            (escenario) =>
-              escenario.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              (escenario.descripcion && escenario.descripcion.toLowerCase().includes(searchTerm.toLowerCase())) ||
-              (escenario.direccion && escenario.direccion.toLowerCase().includes(searchTerm.toLowerCase())),
-          )
-        }
-
-        if (localidadFilter !== "all") {
-          filteredEscenarios = filteredEscenarios.filter(
-            (escenario) =>
-              escenario.localidad_id === Number.parseInt(localidadFilter) ||
-              (escenario.localidad && escenario.localidad === localidadFilter),
-          )
-        }
-
-        if (deporteFilter !== "all") {
-          filteredEscenarios = filteredEscenarios.filter(
-            (escenario) =>
-              escenario.deporte_principal_id === Number.parseInt(deporteFilter) ||
-              (escenario.deporte && escenario.deporte === deporteFilter) ||
-              (escenario.deportes && escenario.deportes.includes(Number.parseInt(deporteFilter))),
-          )
-        }
-
-        // Client-side pagination
-        const itemsPerPage = 9
-        const totalItems = filteredEscenarios.length
-        const totalPagesCount = Math.ceil(totalItems / itemsPerPage)
-
-        const startIndex = (currentPage - 1) * itemsPerPage
-        const endIndex = startIndex + itemsPerPage
-        const paginatedEscenarios = filteredEscenarios.slice(startIndex, endIndex)
-
-        setEscenarios(paginatedEscenarios)
-        setTotalPages(totalPagesCount)
-      } else {
-        console.error("Error al cargar escenarios:", response.message)
-        setError(response.message || "Error al cargar escenarios")
+        console.error("Error al cargar datos:", error)
+        setError("Error al cargar datos. Por favor, intenta nuevamente.")
         toast({
           title: "Error",
-          description: response.message || "Error al cargar escenarios",
+          description: "Error al cargar datos. Por favor, intenta nuevamente.",
           variant: "destructive",
         })
+      } finally {
+        setLoading(false)
       }
-    } catch (error) {
-      console.error("Error al cargar escenarios:", error)
-      setError("Error al cargar escenarios. Por favor, intenta nuevamente.")
-      toast({
-        title: "Error",
-        description: "Error al cargar escenarios. Por favor, intenta nuevamente.",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
     }
-  }
 
+    fetchInitialData()
+  }, [toast])
+
+  // Aplicar filtros usando useMemo para optimizar rendimiento
+  const filteredEscenarios = useMemo(() => {
+    let filtered = [...allEscenarios]
+
+    // Filtro por búsqueda
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim()
+      filtered = filtered.filter(escenario =>
+        escenario.nombre.toLowerCase().includes(searchLower) ||
+        (escenario.descripcion && escenario.descripcion.toLowerCase().includes(searchLower)) ||
+        (escenario.direccion && escenario.direccion.toLowerCase().includes(searchLower)) ||
+        escenario.localidad.nombre.toLowerCase().includes(searchLower) ||
+        escenario.deporte_principal.nombre.toLowerCase().includes(searchLower)
+      )
+    }
+
+    // Filtro por localidad
+    if (localidadFilter !== "all") {
+      filtered = filtered.filter(escenario => 
+        escenario.localidad.id === parseInt(localidadFilter)
+      )
+    }
+
+    // Filtro por deporte
+    if (deporteFilter !== "all") {
+      filtered = filtered.filter(escenario => 
+        escenario.deporte_principal.id === parseInt(deporteFilter)
+      )
+    }
+
+    return filtered
+  }, [allEscenarios, searchTerm, localidadFilter, deporteFilter])
+
+  // Calcular paginación
+  const totalPages = Math.ceil(filteredEscenarios.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const endIndex = startIndex + ITEMS_PER_PAGE
+  const paginatedEscenarios = filteredEscenarios.slice(startIndex, endIndex)
+
+  // Resetear página cuando cambian los filtros
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, localidadFilter, deporteFilter])
+
+  // Manejar cambios en filtros
   const handleFilter = (search: string, localidad: string, deporte: string) => {
     setSearchTerm(search)
     setLocalidadFilter(localidad)
     setDeporteFilter(deporte)
-    setCurrentPage(1) // Resetear a la primera página
-
-    // Since we're doing client-side filtering, we don't need to refetch
-    // Just apply the filters to the existing data
-    fetchEscenarios()
   }
 
+  // Manejar cambio de página
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
-    // No need to refetch, just update the current page for client-side pagination
+    // Scroll hacia arriba cuando cambia la página
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Limpiar filtros
+  const clearFilters = () => {
+    setSearchTerm("")
+    setLocalidadFilter("all")
+    setDeporteFilter("all")
+    setCurrentPage(1)
+  }
+
+  // Reintentar carga de datos
+  const retryFetch = () => {
+    window.location.reload()
   }
 
   return (
@@ -183,19 +229,50 @@ export default function EscenariosPage() {
 
       {/* Contenido principal */}
       <main className="container mx-auto py-8 px-4">
-        <h1 className="mb-8 text-3xl font-bold">Escenarios Deportivos</h1>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Escenarios Deportivos</h1>
+          <p className="text-muted-foreground">
+            Encuentra y reserva el escenario deportivo perfecto para tu actividad
+          </p>
+        </div>
 
         {/* Filtros */}
         <div className="mb-8">
-          <EscenarioFilter localidades={localidades} deportes={deportes} onFilter={handleFilter} />
+          <EscenarioFilter 
+            localidades={localidades} 
+            deportes={deportes} 
+            onFilter={handleFilter}
+            initialSearch={searchTerm}
+            initialLocalidad={localidadFilter}
+            initialDeporte={deporteFilter}
+          />
         </div>
+
+        {/* Información de resultados */}
+        {!loading && !error && (
+          <div className="mb-6 flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Mostrando {paginatedEscenarios.length} de {filteredEscenarios.length} escenarios
+              {(searchTerm || localidadFilter !== "all" || deporteFilter !== "all") && (
+                <span className="ml-2">
+                  (filtrados de {allEscenarios.length} total)
+                </span>
+              )}
+            </p>
+            {(searchTerm || localidadFilter !== "all" || deporteFilter !== "all") && (
+              <Button variant="outline" size="sm" onClick={clearFilters}>
+                Limpiar filtros
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* Mensaje de error */}
         {error && (
           <div className="mb-8 rounded-md bg-destructive/10 p-4 text-destructive">
             <p className="font-medium">Error:</p>
             <p>{error}</p>
-            <Button onClick={fetchEscenarios} variant="outline" className="mt-2">
+            <Button onClick={retryFetch} variant="outline" className="mt-2">
               Reintentar
             </Button>
           </div>
@@ -204,9 +281,12 @@ export default function EscenariosPage() {
         {/* Lista de escenarios */}
         {loading ? (
           <div className="flex h-64 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+            <div className="text-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-green border-t-transparent mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Cargando escenarios...</p>
+            </div>
           </div>
-        ) : escenarios.length === 0 ? (
+        ) : filteredEscenarios.length === 0 ? (
           <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border bg-white p-8 text-center">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-100">
               <svg
@@ -224,79 +304,106 @@ export default function EscenariosPage() {
                 <line x1="12" x2="12.01" y1="17" y2="17" />
               </svg>
             </div>
-            <h2 className="text-xl font-medium">No se encontraron escenarios</h2>
-            <p className="text-muted-foreground">Prueba con otros filtros o amplia tu búsqueda</p>
-            <Button
-              onClick={() => {
-                setSearchTerm("")
-                setLocalidadFilter("all")
-                setDeporteFilter("all")
-                setCurrentPage(1)
-                fetchEscenarios()
-              }}
-            >
-              Limpiar filtros
-            </Button>
+            <h2 className="text-xl font-medium">
+              {allEscenarios.length === 0 ? "No hay escenarios disponibles" : "No se encontraron escenarios"}
+            </h2>
+            <p className="text-muted-foreground">
+              {allEscenarios.length === 0 
+                ? "Actualmente no hay escenarios registrados en el sistema"
+                : "Prueba con otros filtros o amplia tu búsqueda"
+              }
+            </p>
+            {allEscenarios.length > 0 && (
+              <Button onClick={clearFilters}>
+                Limpiar filtros
+              </Button>
+            )}
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {escenarios.map((escenario) => (
-              <EscenarioCard key={escenario.id} {...escenario} />
-            ))}
-          </div>
-        )}
-
-        {/* Paginación */}
-        {!loading && escenarios.length > 0 && totalPages > 1 && (
-          <Pagination className="mt-8">
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    if (currentPage > 1) {
-                      handlePageChange(currentPage - 1)
-                    }
-                  }}
-                  className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                />
-              </PaginationItem>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <PaginationItem key={page}>
-                  <PaginationLink
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      handlePageChange(page)
-                    }}
-                    isActive={page === currentPage}
-                  >
-                    {page}
-                  </PaginationLink>
-                </PaginationItem>
+          <>
+            {/* Grid de escenarios - 6 por página */}
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {paginatedEscenarios.map((escenario) => (
+                <EscenarioCard key={escenario.id} {...escenario} />
               ))}
+            </div>
 
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    if (currentPage < totalPages) {
-                      handlePageChange(currentPage + 1)
-                    }
-                  }}
-                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+            {/* Paginación */}
+            {totalPages > 1 && (
+              <div className="mt-12">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          if (currentPage > 1) {
+                            handlePageChange(currentPage - 1)
+                          }
+                        }}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+
+                    {/* Mostrar páginas */}
+                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                      let pageNumber
+                      if (totalPages <= 5) {
+                        pageNumber = i + 1
+                      } else if (currentPage <= 3) {
+                        pageNumber = i + 1
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNumber = totalPages - 4 + i
+                      } else {
+                        pageNumber = currentPage - 2 + i
+                      }
+
+                      return (
+                        <PaginationItem key={pageNumber}>
+                          <PaginationLink
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              handlePageChange(pageNumber)
+                            }}
+                            isActive={pageNumber === currentPage}
+                            className="cursor-pointer"
+                          >
+                            {pageNumber}
+                          </PaginationLink>
+                        </PaginationItem>
+                      )
+                    })}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          if (currentPage < totalPages) {
+                            handlePageChange(currentPage + 1)
+                          }
+                        }}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+
+                {/* Información de paginación */}
+                <div className="mt-4 text-center text-sm text-muted-foreground">
+                  Página {currentPage} de {totalPages} 
+                  ({startIndex + 1}-{Math.min(endIndex, filteredEscenarios.length)} de {filteredEscenarios.length} escenarios)
+                </div>
+              </div>
+            )}
+          </>
         )}
       </main>
 
-      {/* Footer simple */}
-      <footer className="border-t bg-white py-6">
+      {/* Footer */}
+      <footer className="border-t bg-white py-6 mt-12">
         <div className="container mx-auto px-4 text-center">
           <p className="text-muted-foreground">
             &copy; {new Date().getFullYear()} PRED - Plataforma de Reserva de Escenarios Deportivos
@@ -306,4 +413,3 @@ export default function EscenariosPage() {
     </div>
   )
 }
-
