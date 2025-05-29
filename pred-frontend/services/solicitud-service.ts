@@ -1,3 +1,4 @@
+const API_URL = process.env.NEXT_PUBLIC_API_URL 
 import { get, post, put } from "./api"
 
 export interface Solicitud {
@@ -165,42 +166,33 @@ export async function getSolicitudById(id: number | string) {
 /**
  * Crea una nueva solicitud de reserva
  */
-export async function createSolicitud(solicitud: Solicitud) {
+export async function createSolicitud(solicitud: Solicitud, token?: string) {
   try {
-    const response = await post("solicitudes", solicitud)
+    const response = await fetch(`${API_URL}/solicitudes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify(solicitud),
+    })
 
-    // Si la API falla, usar datos simulados
-    if (!response.success) {
-      console.log("API failed, using mock data")
-      return {
-        success: true,
-        message: "Solicitud creada exitosamente (mock)",
-        data: {
-          id: Math.floor(Math.random() * 1000) + 10,
-          codigo: `SOL-${Math.floor(Math.random() * 1000)}`,
-          ...solicitud,
-          estado: "pendiente",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      }
+    const contentType = response.headers.get("content-type")
+    if (!response.ok) {
+      const text = await response.text()
+      throw new Error(text)
     }
-
-    return response
+    if (contentType && contentType.includes("application/json")) {
+      return await response.json()
+    } else {
+      throw new Error("Respuesta inesperada del servidor")
+    }
   } catch (error) {
     console.error("Error creating solicitud:", error)
-    // Return mock success response
     return {
-      success: true,
-      message: "Solicitud creada exitosamente (mock)",
-      data: {
-        id: Math.floor(Math.random() * 1000) + 10,
-        codigo: `SOL-${Math.floor(Math.random() * 1000)}`,
-        ...solicitud,
-        estado: "pendiente",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
+      success: false,
+      message: "No se pudo crear la solicitud",
+      data: null,
     }
   }
 }

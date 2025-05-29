@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { MapPin, Calendar, Clock } from "lucide-react"
 import Link from "next/link"
 import { getEscenarioById } from "@/services/escenario-service"
+import { getPropositos, createSolicitud } from "@/services/solicitud-service"
+import { useToast } from "@/hooks/use-toast"
 
 // Mock data for escenarios since the backend isn't working correctly
 const MOCK_ESCENARIOS = {
@@ -158,22 +160,21 @@ interface Escenario {
   capacidad: number
   dimensiones: string
   estado: string
-  imagen_principal: string | null
-  localidad: {
-    id: number
-    nombre: string
-  }
-  deporte_principal: {
-    id: number
-    nombre: string
-    icono: string
-  }
+  imagen_principal?: string | null
+  localidad: string | { id: number; nombre: string }
+  deporte?: string | { id: number; nombre: string; icono?: string }
+}
+
+interface Proposito {
+  id: number
+  nombre: string
 }
 
 export default function ReservarPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { user, loading } = useAuth()
+  const { toast } = useToast()
 
   const escenarioId = searchParams.get("escenario_id") || ""
   const fecha = searchParams.get("fecha") || ""
@@ -182,6 +183,13 @@ export default function ReservarPage() {
   const [escenario, setEscenario] = useState<Escenario | null>(null)
   const [loadingEscenario, setLoadingEscenario] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [propositos, setPropositos] = useState<Proposito[]>([])
+  const [form, setForm] = useState({
+    proposito_id: "",
+    num_participantes: "",
+    notas: "",
+  })
+  const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {
     // Verificar que se tienen todos los parámetros necesarios
@@ -203,11 +211,9 @@ export default function ReservarPage() {
       try {
         // Try to get from API
         const response = await getEscenarioById(escenarioId)
-
         if (response.success) {
           setEscenario(response.data)
         } else {
-          // If API fails, use mock data
           if (MOCK_ESCENARIOS[escenarioId]) {
             setEscenario(MOCK_ESCENARIOS[escenarioId])
           } else {
@@ -215,9 +221,6 @@ export default function ReservarPage() {
           }
         }
       } catch (error) {
-        console.error("Error al cargar el escenario:", error)
-
-        // Use mock data as fallback
         if (MOCK_ESCENARIOS[escenarioId]) {
           setEscenario(MOCK_ESCENARIOS[escenarioId])
         } else {
@@ -228,8 +231,82 @@ export default function ReservarPage() {
       }
     }
 
+    // Cargar propósitos
+    const fetchPropositos = async () => {
+      const res = await getPropositos()
+      if (res.success) setPropositos(res.data)
+    }
+
     fetchEscenario()
+    fetchPropositos()
   }, [escenarioId, fecha, hora, user, loading, router])
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
+
+  const handleReserva = async (e: React.FormEvent) => {
+  e.preventDefault()
+  if (!form.proposito_id || !form.num_participantes) {
+    toast({
+      title: "Faltan datos",
+      description: "Por favor completa todos los campos obligatorios.",
+      variant: "destructive",
+    })
+    return
+  }
+  setEnviando(true)
+  try {
+    // Formato correcto: HH:MM
+    const hora_inicio = hora.slice(0, 5)
+    const [h, m] = hora_inicio.split(":").map(Number)
+    const hora_fin = `${String(h + 2).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+
+    const solicitud = {
+      escenario_id: Number(escenarioId),
+      fecha_reserva: fecha,
+      hora_inicio,
+      hora_fin,
+      proposito_id: Number(form.proposito_id),
+      num_participantes: Number(form.num_participantes),
+      notas: form.notas,
+    }
+
+    // Obtener token JWT del localStorage (ajusta si lo guardas en otro lado)
+    const token = typeof window !== "undefined" ? localStorage.getItem("pred_token") : undefined
+
+    // Usa la función centralizada del servicio
+    const data = await createSolicitud(solicitud, token)
+
+    if (data.success) {
+      toast({
+        title: "Reserva realizada",
+        description: "Tu solicitud de reserva fue enviada correctamente.",
+        variant: "success",
+      })
+      setForm({
+        proposito_id: "",
+        num_participantes: "",
+        notas: "",
+      })
+      router.push("/solicitudes")
+    } else {
+      toast({
+        title: "Error",
+        description: data.message || "No se pudo realizar la reserva.",
+        variant: "destructive",
+      })
+    }
+  } catch (error: any) {
+    toast({
+      title: "Error",
+      description: error?.message || "No se pudo realizar la reserva.",
+      variant: "destructive",
+    })
+  } finally {
+    setEnviando(false)
+  }
+}
 
   if (loading || loadingEscenario) {
     return (
@@ -286,7 +363,11 @@ export default function ReservarPage() {
                     <div className="flex items-start gap-2 text-sm">
                       <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
                       <span>
-                        {escenario.direccion}, {escenario.localidad}
+                        {typeof escenario.localidad === "string"
+                          ? escenario.localidad
+                          : escenario.localidad?.nombre
+                        }
+                        , {escenario.direccion}
                       </span>
                     </div>
                   </div>
@@ -327,13 +408,70 @@ export default function ReservarPage() {
                   <CardDescription>Completa la información para tu reserva</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <SolicitudForm
-                    escenarioId={escenarioId}
-                    fecha={fecha}
-                    hora={hora}
-                    escenarioNombre={escenario.nombre}
-                    escenarioCapacidad={escenario.capacidad}
-                  />
+                  <form className="space-y-4" onSubmit={handleReserva}>
+                    <div>
+                      <label className="block text-sm font-medium mb-1" htmlFor="proposito_id">
+                        Propósito de la reserva <span className="text-primary-red">*</span>
+                      </label>
+                      <select
+                        id="proposito_id"
+                        name="proposito_id"
+                        className="w-full rounded border px-3 py-2"
+                        value={form.proposito_id}
+                        onChange={handleFormChange}
+                        required
+                        disabled={enviando}
+                      >
+                        <option value="">Selecciona un propósito</option>
+                        {propositos.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1" htmlFor="num_participantes">
+                        Número de participantes <span className="text-primary-red">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        id="num_participantes"
+                        name="num_participantes"
+                        className="w-full rounded border px-3 py-2"
+                        value={form.num_participantes}
+                        onChange={handleFormChange}
+                        required
+                        disabled={enviando}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1" htmlFor="notas">
+                        Notas adicionales
+                      </label>
+                      <textarea
+                        id="notas"
+                        name="notas"
+                        className="w-full rounded border px-3 py-2"
+                        value={form.notas}
+                        onChange={handleFormChange}
+                        rows={2}
+                        disabled={enviando}
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      className="w-full bg-primary-green hover:bg-primary-dark-green"
+                      disabled={
+                        enviando ||
+                        !form.proposito_id ||
+                        !form.num_participantes
+                      }
+                    >
+                      {enviando ? "Enviando..." : "Reservar"}
+                    </Button>
+                  </form>
                 </CardContent>
                 <CardFooter className="border-t px-6 py-4 text-xs text-muted-foreground">
                   Al enviar este formulario, aceptas los términos y condiciones de la plataforma PRED.
@@ -355,4 +493,3 @@ export default function ReservarPage() {
     </div>
   )
 }
-

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { EscenarioGallery } from "@/components/escenarios/escenario-gallery"
 import { DisponibilidadSelector } from "@/components/escenarios/disponibilidad-selector"
-import { getEscenarioById, getHorariosDisponibles } from "@/services/escenario-service"
+import { getEscenarioById, getHorariosDisponibles, getDiasDisponibles, getHorasDisponibles } from "@/services/escenario-service"
 import { MapPin, Users, Calendar, Clock, BadgeInfo } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
@@ -199,34 +199,30 @@ export default function EscenarioPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string>("")
+  const [diasDisponibles, setDiasDisponibles] = useState<string[]>([])
   const [horasDisponibles, setHorasDisponibles] = useState<string[]>([])
   const [cargandoHorarios, setCargandoHorarios] = useState<boolean>(false)
+  const [cargandoDias, setCargandoDias] = useState<boolean>(false)
 
+  // Cargar escenario y días disponibles
   useEffect(() => {
     const fetchEscenario = async () => {
       setLoading(true)
       try {
-        // Try to get from API first
         const response = await getEscenarioById(id)
-
         if (response.success) {
           setEscenario(response.data)
         } else {
-          // If API fails, use mock data
           if (MOCK_ESCENARIOS[id]) {
             setEscenario(MOCK_ESCENARIOS[id])
           } else {
             setError("Escenario no encontrado")
           }
         }
-
-        // Establecer la fecha actual como fecha seleccionada por defecto
+        // Establecer la fecha actual como seleccionada por defecto
         const hoy = new Date()
         setFechaSeleccionada(hoy.toISOString().split("T")[0])
       } catch (error) {
-        console.error("Error al cargar el escenario:", error)
-
-        // Use mock data as fallback
         if (MOCK_ESCENARIOS[id]) {
           setEscenario(MOCK_ESCENARIOS[id])
         } else {
@@ -237,27 +233,47 @@ export default function EscenarioPage() {
       }
     }
 
+    const fetchDias = async () => {
+      setCargandoDias(true)
+      try {
+        // Rango de fechas: hoy a 30 días después
+        const hoy = new Date()
+        const fechaInicio = hoy.toISOString().split("T")[0]
+        const fechaFin = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + 30).toISOString().split("T")[0]
+        const response = await getDiasDisponibles(Number(id), fechaInicio, fechaFin)
+        if (response.success) {
+          setDiasDisponibles(response.data)
+        } else {
+          setDiasDisponibles([])
+        }
+      } catch (error) {
+        setDiasDisponibles([])
+      } finally {
+        setCargandoDias(false)
+      }
+    }
+
     if (id) {
       fetchEscenario()
+      fetchDias()
     }
   }, [id])
 
+  // Cargar horas disponibles cuando cambia la fecha seleccionada
   useEffect(() => {
-    // Cuando cambia la fecha seleccionada, obtener los horarios disponibles
     if (fechaSeleccionada) {
-      fetchHorariosDisponibles()
+      fetchHoras()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fechaSeleccionada])
 
-  const fetchHorariosDisponibles = async () => {
+  const fetchHoras = async () => {
     setCargandoHorarios(true)
     try {
-      const response = await getHorariosDisponibles(id, fechaSeleccionada)
-
+      const response = await getHorasDisponibles(Number(id), fechaSeleccionada)
       if (response.success) {
         setHorasDisponibles(response.data)
       } else {
-        console.error("Error al obtener horarios:", response.message)
         toast({
           title: "Error",
           description: response.message || "Error al obtener horarios disponibles",
@@ -266,7 +282,6 @@ export default function EscenarioPage() {
         setHorasDisponibles([])
       }
     } catch (error) {
-      console.error("Error al obtener horarios:", error)
       toast({
         title: "Error de conexión",
         description: "No se pudo conectar con el servidor",
@@ -348,7 +363,7 @@ export default function EscenarioPage() {
                       <Calendar className="h-5 w-5 text-primary-green" />
                       <div>
                         <p className="font-medium">Deporte principal</p>
-                        <p className="text-sm text-muted-foreground">{escenario.deporte}</p>
+                        <p className="text-sm text-muted-foreground">{escenario.deporte || escenario.deporte_principal?.nombre}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -397,7 +412,7 @@ export default function EscenarioPage() {
               <CardContent className="p-6">
                 <h2 className="mb-4 text-xl font-semibold">Reservar este escenario</h2>
 
-                {cargandoHorarios ? (
+                {cargandoDias || cargandoHorarios ? (
                   <div className="flex justify-center py-8">
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-green border-t-transparent"></div>
                   </div>
@@ -407,6 +422,7 @@ export default function EscenarioPage() {
                     fecha={fechaSeleccionada}
                     horasDisponibles={horasDisponibles}
                     onFechaChange={handleFechaChange}
+                    diasDisponibles={diasDisponibles}
                   />
                 )}
               </CardContent>
@@ -426,4 +442,3 @@ export default function EscenarioPage() {
     </div>
   )
 }
-

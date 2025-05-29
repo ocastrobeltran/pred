@@ -1,4 +1,5 @@
 import { get, post, put, del } from "./api"
+const API_URL = process.env.NEXT_PUBLIC_API_URL 
 
 export interface Escenario {
   id?: number
@@ -44,7 +45,7 @@ export async function getEscenarios() {
 export async function getEscenarioById(id: number | string) {
   try {
     // Try to get from API
-    const response = await get(`escenarios/view/${id}`)
+    const response = await get(`escenarios/${id}`)
     return response
   } catch (error) {
     console.error("Error fetching escenario:", error)
@@ -102,19 +103,19 @@ export async function getAmenidades() {
 /**
  * Verifica la disponibilidad de un escenario
  */
-export async function verificarDisponibilidad(
-  escenarioId: number | string,
-  fecha: string,
-  horaInicio: string,
-  horaFin: string,
-) {
-  return post("escenarios/verificar-disponibilidad", {
-    escenario_id: escenarioId,
-    fecha,
-    hora_inicio: horaInicio,
-    hora_fin: horaFin,
-  })
-}
+// export async function verificarDisponibilidad(
+//   escenarioId: number | string,
+//   fecha: string,
+//   horaInicio: string,
+//   horaFin: string,
+// ) {
+//   return post("escenarios/verificar-disponibilidad", {
+//     escenario_id: escenarioId,
+//     fecha,
+//     hora_inicio: horaInicio,
+//     hora_fin: horaFin,
+//   })
+// }
 
 /**
  * Obtiene los horarios disponibles para un escenario en una fecha específica
@@ -129,3 +130,23 @@ export async function getHorariosDisponibles(escenarioId: number | string, fecha
   }
 }
 
+export async function getDiasDisponibles(escenarioId: string | number, fechaInicio: string, fechaFin: string) {
+  const idNum = Number(escenarioId)
+  const res = await fetch(`${API_URL}/scenes/dias-disponibles?escenario_id=${idNum}&fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`)
+  return res.json()
+}
+
+export async function getHorasDisponibles(escenarioId: string | number, fecha: string) {
+  const idNum = Number(escenarioId)
+  const res = await fetch(`${API_URL}/scenes/horas-disponibles?escenario_id=${idNum}&fecha=${fecha}`)
+  return res.json()
+}
+
+export async function verificarDisponibilidad(escenarioId: string, fecha: string, hora: string) {
+  const res = await fetch(`${API_URL}/scenes/verificar-disponibilidad`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ escenario_id: escenarioId, fecha, hora }),
+  })
+  return res.json()
+}
