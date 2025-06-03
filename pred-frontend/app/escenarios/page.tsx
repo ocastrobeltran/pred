@@ -1,18 +1,11 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { EscenarioCard } from "@/components/escenarios/escenario-card"
 import { EscenarioFilter } from "@/components/escenarios/escenario-filter"
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination"
 import { Button } from "@/components/ui/button"
-import { getEscenarios, getLocalidades, getDeportes } from "@/services/escenario-service"
+import { Grid, List, Loader2 } from "lucide-react"
+import { getEscenarios } from "@/services/escenario-service"
 import { useToast } from "@/hooks/use-toast"
 import { SiteHeader } from "@/components/layout/site-header"
 
@@ -36,111 +29,168 @@ interface Escenario {
   }
 }
 
-interface Localidad {
-  id: number
-  nombre: string
-}
-
-interface Deporte {
-  id: number
-  nombre: string
-}
-
-// Función para renderizar objetos de forma segura
-const safeRender = (value: any): string => {
-  if (typeof value === 'string') return value
-  if (typeof value === 'object' && value !== null && 'nombre' in value) {
-    return value.nombre
-  }
-  return ''
-}
-
-// Función para procesar datos de escenarios
-const processEscenarioData = (escenario: any): Escenario => {
-  return {
-    ...escenario,
-    localidad: {
-      id: escenario.localidad?.id || 0,
-      nombre: safeRender(escenario.localidad)
-    },
-    deporte_principal: {
-      id: escenario.deporte_principal?.id || 0,
-      nombre: safeRender(escenario.deporte_principal),
-      icono: escenario.deporte_principal?.icono || ''
-    }
-  }
+interface FilterValues {
+  search?: string
+  localidad_id?: string
+  deporte_id?: string
+  estado?: string
 }
 
 export default function EscenariosPage() {
   const { toast } = useToast()
-  
-  // Estados para datos
-  const [allEscenarios, setAllEscenarios] = useState<Escenario[]>([])
-  const [localidades, setLocalidades] = useState<Localidad[]>([])
-  const [deportes, setDeportes] = useState<Deporte[]>([])
+
+  // Estados
+  const [escenarios, setEscenarios] = useState<Escenario[]>([])
+  const [filteredEscenarios, setFilteredEscenarios] = useState<Escenario[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [mounted, setMounted] = useState(false)
 
-  // Estados para filtros
-  const [searchTerm, setSearchTerm] = useState("")
-  const [localidadFilter, setLocalidadFilter] = useState("all")
-  const [deporteFilter, setDeporteFilter] = useState("all")
-
-  // Estados para paginación
-  const [currentPage, setCurrentPage] = useState(1)
-  const ITEMS_PER_PAGE = 6
-
-  // Cargar datos iniciales
+  // Marcar como montado para evitar problemas de hidratación
   useEffect(() => {
-    const fetchInitialData = async () => {
-      setLoading(true)
-      setError(null)
+    setMounted(true)
+  }, [])
 
+  // Cargar escenarios
+  useEffect(() => {
+    const fetchEscenarios = async () => {
       try {
-        // Cargar escenarios, localidades y deportes en paralelo
-        const [escenariosRes, localidadesRes, deportesRes] = await Promise.all([
-          getEscenarios(),
-          getLocalidades(),
-          getDeportes()
-        ])
+        setLoading(true)
+        setError(null)
 
-        // Procesar escenarios
-        if (escenariosRes.success) {
+        console.log("Iniciando carga de escenarios...")
+        const response = await getEscenarios()
+        console.log("Respuesta completa del API:", response)
+
+        if (response.success && response.data) {
           let escenariosData = []
-          
-          if (escenariosRes.data && Array.isArray(escenariosRes.data.data)) {
-            escenariosData = escenariosRes.data.data
-          } else if (Array.isArray(escenariosRes.data)) {
-            escenariosData = escenariosRes.data
+
+          // Verificar la estructura de la respuesta
+          console.log("Tipo de response.data:", typeof response.data)
+          console.log("response.data:", response.data)
+
+          // La respuesta tiene la estructura: response.data.data
+          if (response.data.data && Array.isArray(response.data.data)) {
+            escenariosData = response.data.data
+            console.log("Datos extraídos de response.data.data:", escenariosData)
+          }
+          // Si response.data es directamente un array
+          else if (Array.isArray(response.data)) {
+            escenariosData = response.data
+            console.log("Datos extraídos de response.data (array directo):", escenariosData)
+          }
+          // Si hay una propiedad escenarios
+          else if (response.data.escenarios && Array.isArray(response.data.escenarios)) {
+            escenariosData = response.data.escenarios
+            console.log("Datos extraídos de response.data.escenarios:", escenariosData)
+          }
+          // Si response es directamente la estructura con data
+          else if (response.data && response.data.data && Array.isArray(response.data.data.data)) {
+            escenariosData = response.data.data.data
+            console.log("Datos extraídos de response.data.data.data:", escenariosData)
+          } else {
+            console.log("Estructura de datos no reconocida. Intentando acceso directo...")
+            console.log("response.data keys:", Object.keys(response.data))
+
+            // Intentar acceder directamente si la respuesta está anidada
+            if (response.data.data && response.data.data.data) {
+              escenariosData = response.data.data.data
+            } else {
+              escenariosData = []
+            }
           }
 
-          // Procesar cada escenario para asegurar formato correcto
-          const processedEscenarios = escenariosData.map(processEscenarioData)
-          setAllEscenarios(processedEscenarios)
-        } else {
-          throw new Error(escenariosRes.message || "Error al cargar escenarios")
-        }
+          console.log("Array de escenarios a procesar:", escenariosData)
+          console.log("Cantidad de escenarios:", escenariosData.length)
 
-        // Procesar localidades
-        if (localidadesRes.success) {
-          setLocalidades(localidadesRes.data || [])
-        } else {
-          console.warn("Error al cargar localidades:", localidadesRes.message)
-        }
+          if (escenariosData.length > 0) {
+            // Procesar cada escenario para asegurar estructura correcta
+            const processedEscenarios = escenariosData.map((escenario: any, index: number) => {
+              console.log(`Procesando escenario ${index + 1}:`, escenario)
+              return {
+                id: escenario.id,
+                nombre: escenario.nombre,
+                descripcion: escenario.descripcion,
+                direccion: escenario.direccion,
+                capacidad: escenario.capacidad,
+                dimensiones: escenario.dimensiones,
+                estado: escenario.estado,
+                imagen_principal: escenario.imagen_principal,
+                localidad: {
+                  id: escenario.localidad.id,
+                  nombre: escenario.localidad.nombre,
+                },
+                deporte_principal: {
+                  id: escenario.deporte_principal.id,
+                  nombre: escenario.deporte_principal.nombre,
+                  icono: escenario.deporte_principal.icono,
+                },
+              }
+            })
 
-        // Procesar deportes
-        if (deportesRes.success) {
-          setDeportes(deportesRes.data || [])
-        } else {
-          console.warn("Error al cargar deportes:", deportesRes.message)
-        }
+            console.log("Escenarios procesados:", processedEscenarios)
+            setEscenarios(processedEscenarios)
+            setFilteredEscenarios(processedEscenarios)
 
+            toast({
+              title: "Éxito",
+              description: `Se cargaron ${processedEscenarios.length} escenarios correctamente.`,
+              variant: "default",
+            })
+          } else {
+            console.log("No se encontraron escenarios en la respuesta")
+            setEscenarios([])
+            setFilteredEscenarios([])
+
+            toast({
+              title: "Información",
+              description: "No se encontraron escenarios en el sistema.",
+              variant: "default",
+            })
+          }
+        } else {
+          console.log("Respuesta no exitosa o sin datos:", response)
+          throw new Error(response.message || "No se pudieron cargar los escenarios")
+        }
       } catch (error) {
-        console.error("Error al cargar datos:", error)
-        setError("Error al cargar datos. Por favor, intenta nuevamente.")
+        console.error("Error al cargar escenarios:", error)
+        setError("Error al cargar los escenarios desde el servidor")
+
+        // Datos de prueba como fallback
+        const mockEscenarios = [
+          {
+            id: 1,
+            nombre: "Estadio Municipal",
+            descripcion: "Estadio principal de la ciudad con capacidad para grandes eventos deportivos",
+            direccion: "Calle 50 #25-30",
+            capacidad: 15000,
+            dimensiones: "105m x 68m",
+            estado: "disponible",
+            imagen_principal: null,
+            localidad: { id: 1, nombre: "Centro" },
+            deporte_principal: { id: 1, nombre: "Fútbol", icono: "fa-futbol" },
+          },
+          {
+            id: 2,
+            nombre: "Coliseo de Deportes",
+            descripcion: "Moderno coliseo para deportes bajo techo",
+            direccion: "Carrera 15 #40-20",
+            capacidad: 8000,
+            dimensiones: "40m x 20m",
+            estado: "disponible",
+            imagen_principal: null,
+            localidad: { id: 2, nombre: "Olaya Herrera" },
+            deporte_principal: { id: 3, nombre: "Baloncesto", icono: "fa-basketball-ball" },
+          },
+        ]
+
+        setEscenarios(mockEscenarios)
+        setFilteredEscenarios(mockEscenarios)
+
         toast({
           title: "Error",
-          description: "Error al cargar datos. Por favor, intenta nuevamente.",
+          description: "No se pudieron cargar los escenarios del servidor. Mostrando datos de ejemplo.",
           variant: "destructive",
         })
       } finally {
@@ -148,268 +198,147 @@ export default function EscenariosPage() {
       }
     }
 
-    fetchInitialData()
-  }, [toast])
+    if (mounted) {
+      fetchEscenarios()
+    }
+  }, [mounted, toast])
 
-  // Aplicar filtros usando useMemo para optimizar rendimiento
-  const filteredEscenarios = useMemo(() => {
-    let filtered = [...allEscenarios]
+  // Aplicar filtros
+  const handleFilterChange = (filters: FilterValues) => {
+    console.log("Aplicando filtros:", filters)
+    console.log("Escenarios disponibles para filtrar:", escenarios.length)
+
+    let filtered = [...escenarios]
 
     // Filtro por búsqueda
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase().trim()
-      filtered = filtered.filter(escenario =>
-        escenario.nombre.toLowerCase().includes(searchLower) ||
-        (escenario.descripcion && escenario.descripcion.toLowerCase().includes(searchLower)) ||
-        (escenario.direccion && escenario.direccion.toLowerCase().includes(searchLower)) ||
-        escenario.localidad.nombre.toLowerCase().includes(searchLower) ||
-        escenario.deporte_principal.nombre.toLowerCase().includes(searchLower)
+    if (filters.search?.trim()) {
+      const searchTerm = filters.search.toLowerCase().trim()
+      filtered = filtered.filter(
+        (escenario) =>
+          escenario.nombre.toLowerCase().includes(searchTerm) ||
+          escenario.descripcion.toLowerCase().includes(searchTerm) ||
+          escenario.direccion.toLowerCase().includes(searchTerm) ||
+          escenario.localidad.nombre.toLowerCase().includes(searchTerm) ||
+          escenario.deporte_principal.nombre.toLowerCase().includes(searchTerm),
       )
     }
 
     // Filtro por localidad
-    if (localidadFilter !== "all") {
-      filtered = filtered.filter(escenario => 
-        escenario.localidad.id === parseInt(localidadFilter)
-      )
+    if (filters.localidad_id && filters.localidad_id !== "all") {
+      filtered = filtered.filter((escenario) => escenario.localidad.id === Number.parseInt(filters.localidad_id!))
     }
 
     // Filtro por deporte
-    if (deporteFilter !== "all") {
-      filtered = filtered.filter(escenario => 
-        escenario.deporte_principal.id === parseInt(deporteFilter)
-      )
+    if (filters.deporte_id && filters.deporte_id !== "all") {
+      filtered = filtered.filter((escenario) => escenario.deporte_principal.id === Number.parseInt(filters.deporte_id!))
     }
 
-    return filtered
-  }, [allEscenarios, searchTerm, localidadFilter, deporteFilter])
+    // Filtro por estado
+    if (filters.estado && filters.estado !== "all") {
+      filtered = filtered.filter((escenario) => escenario.estado === filters.estado)
+    }
 
-  // Calcular paginación
-  const totalPages = Math.ceil(filteredEscenarios.length / ITEMS_PER_PAGE)
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-  const endIndex = startIndex + ITEMS_PER_PAGE
-  const paginatedEscenarios = filteredEscenarios.slice(startIndex, endIndex)
-
-  // Resetear página cuando cambian los filtros
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm, localidadFilter, deporteFilter])
-
-  // Manejar cambios en filtros
-  const handleFilter = (search: string, localidad: string, deporte: string) => {
-    setSearchTerm(search)
-    setLocalidadFilter(localidad)
-    setDeporteFilter(deporte)
+    console.log("Escenarios filtrados:", filtered.length)
+    setFilteredEscenarios(filtered)
   }
 
-  // Manejar cambio de página
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page)
-    // Scroll hacia arriba cuando cambia la página
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+  // Reintentar carga
+  const retryLoad = () => {
+    setError(null)
+    setMounted(false)
+    setTimeout(() => setMounted(true), 100)
   }
 
-  // Limpiar filtros
-  const clearFilters = () => {
-    setSearchTerm("")
-    setLocalidadFilter("all")
-    setDeporteFilter("all")
-    setCurrentPage(1)
-  }
-
-  // Reintentar carga de datos
-  const retryFetch = () => {
-    window.location.reload()
+  // No renderizar hasta que esté montado
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <SiteHeader />
+        <main className="container mx-auto py-8 px-4">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Barra de navegación */}
+    <div className="min-h-screen bg-gray-50">
       <SiteHeader />
 
-      {/* Contenido principal */}
       <main className="container mx-auto py-8 px-4">
+        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Escenarios Deportivos</h1>
-          <p className="text-muted-foreground">
-            Encuentra y reserva el escenario deportivo perfecto para tu actividad
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Escenarios Deportivos</h1>
+          <p className="text-gray-600">Encuentra y reserva el escenario deportivo perfecto para tu actividad</p>
         </div>
 
         {/* Filtros */}
         <div className="mb-8">
-          <EscenarioFilter 
-            localidades={localidades} 
-            deportes={deportes} 
-            onFilter={handleFilter}
-            initialSearch={searchTerm}
-            initialLocalidad={localidadFilter}
-            initialDeporte={deporteFilter}
-          />
+          <EscenarioFilter onFilterChange={handleFilterChange} />
         </div>
 
-        {/* Información de resultados */}
-        {!loading && !error && (
-          <div className="mb-6 flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Mostrando {paginatedEscenarios.length} de {filteredEscenarios.length} escenarios
-              {(searchTerm || localidadFilter !== "all" || deporteFilter !== "all") && (
-                <span className="ml-2">
-                  (filtrados de {allEscenarios.length} total)
-                </span>
-              )}
+        {/* Controles de vista y resultados */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <p className="text-sm text-gray-600">
+              {loading
+                ? "Cargando..."
+                : `${filteredEscenarios.length} escenario${filteredEscenarios.length !== 1 ? "s" : ""} encontrado${filteredEscenarios.length !== 1 ? "s" : ""}`}
             </p>
-            {(searchTerm || localidadFilter !== "all" || deporteFilter !== "all") && (
-              <Button variant="outline" size="sm" onClick={clearFilters}>
-                Limpiar filtros
-              </Button>
-            )}
+            {escenarios.length > 0 && <p className="text-xs text-gray-500">({escenarios.length} total)</p>}
           </div>
-        )}
 
-        {/* Mensaje de error */}
-        {error && (
-          <div className="mb-8 rounded-md bg-destructive/10 p-4 text-destructive">
-            <p className="font-medium">Error:</p>
-            <p>{error}</p>
-            <Button onClick={retryFetch} variant="outline" className="mt-2">
-              Reintentar
+          <div className="flex items-center gap-2">
+            <Button variant={viewMode === "grid" ? "default" : "outline"} size="sm" onClick={() => setViewMode("grid")}>
+              <Grid className="h-4 w-4" />
+            </Button>
+            <Button variant={viewMode === "list" ? "default" : "outline"} size="sm" onClick={() => setViewMode("list")}>
+              <List className="h-4 w-4" />
             </Button>
           </div>
-        )}
+        </div>
 
-        {/* Lista de escenarios */}
+        {/* Contenido */}
         {loading ? (
-          <div className="flex h-64 items-center justify-center">
+          <div className="flex items-center justify-center py-12">
             <div className="text-center">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-green border-t-transparent mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Cargando escenarios...</p>
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+              <p className="text-gray-600">Cargando escenarios...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
+              <h3 className="text-lg font-medium text-red-800 mb-2">Error al cargar</h3>
+              <p className="text-red-600 mb-4">{error}</p>
+              <Button onClick={retryLoad} variant="outline">
+                Reintentar
+              </Button>
             </div>
           </div>
         ) : filteredEscenarios.length === 0 ? (
-          <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border bg-white p-8 text-center">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-100">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-10 w-10 text-muted-foreground"
-              >
-                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                <line x1="12" x2="12" y1="9" y2="13" />
-                <line x1="12" x2="12.01" y1="17" y2="17" />
-              </svg>
+          <div className="text-center py-12">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 max-w-md mx-auto">
+              <h3 className="text-lg font-medium text-gray-800 mb-2">
+                {escenarios.length === 0 ? "No hay escenarios disponibles" : "No se encontraron escenarios"}
+              </h3>
+              <p className="text-gray-600">
+                {escenarios.length === 0
+                  ? "No hay escenarios registrados en el sistema"
+                  : "Intenta ajustar los filtros de búsqueda"}
+              </p>
             </div>
-            <h2 className="text-xl font-medium">
-              {allEscenarios.length === 0 ? "No hay escenarios disponibles" : "No se encontraron escenarios"}
-            </h2>
-            <p className="text-muted-foreground">
-              {allEscenarios.length === 0 
-                ? "Actualmente no hay escenarios registrados en el sistema"
-                : "Prueba con otros filtros o amplia tu búsqueda"
-              }
-            </p>
-            {allEscenarios.length > 0 && (
-              <Button onClick={clearFilters}>
-                Limpiar filtros
-              </Button>
-            )}
           </div>
         ) : (
-          <>
-            {/* Grid de escenarios - 6 por página */}
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {paginatedEscenarios.map((escenario) => (
-                <EscenarioCard key={escenario.id} {...escenario} />
-              ))}
-            </div>
-
-            {/* Paginación */}
-            {totalPages > 1 && (
-              <div className="mt-12">
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          if (currentPage > 1) {
-                            handlePageChange(currentPage - 1)
-                          }
-                        }}
-                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                      />
-                    </PaginationItem>
-
-                    {/* Mostrar páginas */}
-                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                      let pageNumber
-                      if (totalPages <= 5) {
-                        pageNumber = i + 1
-                      } else if (currentPage <= 3) {
-                        pageNumber = i + 1
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNumber = totalPages - 4 + i
-                      } else {
-                        pageNumber = currentPage - 2 + i
-                      }
-
-                      return (
-                        <PaginationItem key={pageNumber}>
-                          <PaginationLink
-                            href="#"
-                            onClick={(e) => {
-                              e.preventDefault()
-                              handlePageChange(pageNumber)
-                            }}
-                            isActive={pageNumber === currentPage}
-                            className="cursor-pointer"
-                          >
-                            {pageNumber}
-                          </PaginationLink>
-                        </PaginationItem>
-                      )
-                    })}
-
-                    <PaginationItem>
-                      <PaginationNext
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          if (currentPage < totalPages) {
-                            handlePageChange(currentPage + 1)
-                          }
-                        }}
-                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-
-                {/* Información de paginación */}
-                <div className="mt-4 text-center text-sm text-muted-foreground">
-                  Página {currentPage} de {totalPages} 
-                  ({startIndex + 1}-{Math.min(endIndex, filteredEscenarios.length)} de {filteredEscenarios.length} escenarios)
-                </div>
-              </div>
-            )}
-          </>
+          <div className={viewMode === "grid" ? "grid gap-6 sm:grid-cols-2 lg:grid-cols-3" : "space-y-4"}>
+            {filteredEscenarios.map((escenario) => (
+              <EscenarioCard key={escenario.id} escenario={escenario} viewMode={viewMode} />
+            ))}
+          </div>
         )}
       </main>
-
-      {/* Footer */}
-      <footer className="border-t bg-white py-6 mt-12">
-        <div className="container mx-auto px-4 text-center">
-          <p className="text-muted-foreground">
-            &copy; {new Date().getFullYear()} PRED - Plataforma de Reserva de Escenarios Deportivos
-          </p>
-        </div>
-      </footer>
     </div>
   )
 }

@@ -8,10 +8,12 @@ export interface User {
   email: string
   cedula: string
   telefono: string
-  direccion: string
+  direccion?: string
   rol_id: number
-  rol_nombre?: string
-  estado?: string
+  estado: string
+  avatar?: string
+  created_at: string
+  updated_at: string
 }
 
 // Escenario deportivo
@@ -103,17 +105,17 @@ export interface Proposito {
   nombre: string
 }
 
-// Notificación
-export interface Notificacion {
-  id: number
-  usuario_id: number
-  titulo: string
-  mensaje: string
-  tipo: string
-  url: string
-  leida: boolean
-  created_at: string
-}
+// // Notificación
+// export interface Notificacion {
+//   id: number
+//   usuario_id: number
+//   titulo: string
+//   mensaje: string
+//   tipo: string
+//   url: string
+//   leida: boolean
+//   created_at: string
+// }
 
 // Rol de usuario
 export interface Rol {
@@ -152,3 +154,43 @@ export interface ApiResponse<T> {
   data: T
 }
 
+export interface Rol {
+  id: number
+  nombre: string
+  descripcion?: string
+}
+
+export interface Solicitud {
+  id: number
+  codigo_reserva: string
+  usuario_id: number
+  escenario_id: number
+  fecha_reserva: string
+  hora_inicio: string
+  hora_fin: string
+  proposito_id: number
+  num_participantes: number
+  estado_id: number
+  notas?: string
+  admin_notas?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Estado {
+  id: number
+  nombre: string
+  color: string
+  descripcion?: string
+}
+
+export interface Notificacion {
+  id: number
+  usuario_id: number
+  titulo: string
+  mensaje: string
+  tipo: "success" | "error" | "warning" | "info"
+  leida: boolean
+  url?: string
+  created_at: string
+}

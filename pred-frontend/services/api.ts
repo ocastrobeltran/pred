@@ -1,145 +1,162 @@
 import { API_URL } from "@/lib/config"
 
-// Modify the fetchWithAuth function to include better debugging and parameter handling
-export async function fetchWithAuth(endpoint: string, params: Record<string, any> = {}, options: RequestInit = {}) {
-  // Obtener el token del localStorage
-  const token = typeof window !== "undefined" ? localStorage.getItem("pred_token") : null
+interface ApiResponse<T = any> {
+  success: boolean
+  message: string
+  data?: T
+  error?: string
+}
 
-  // Configurar los headers con el token si existe
-  const headers = {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...options.headers,
+// Función para obtener el token del localStorage
+const getToken = (): string | null => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("pred_token")
   }
+  return null
+}
 
-  // Extract query parameters from params object
-  const queryParams = { ...params }
-  delete queryParams.body // Remove body if it exists in params
-
-  // Build query string if there are parameters
-  const queryString =
-    Object.keys(queryParams).length > 0
-      ? "?" + new URLSearchParams(Object.entries(queryParams).map(([key, value]) => [key, String(value)])).toString()
-      : ""
-
-  // Construir la URL completa correctamente
-  const url = `${API_URL}${endpoint.startsWith("/") ? endpoint : "/" + endpoint}${queryString}`
-
-  console.log(`Fetching: ${url}`, {
-    method: options.method || "GET",
-    headers,
-    body: options.body ? JSON.parse(options.body as string) : undefined,
-  }) // Enhanced debugging
+// Función para manejar respuestas de la API
+const handleResponse = async (response: Response): Promise<ApiResponse> => {
+  const contentType = response.headers.get("content-type")
 
   try {
-    // Realizar la petición
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    })
+    if (contentType && contentType.includes("application/json")) {
+      const data = await response.json()
 
-    // Log the raw response for debugging
-    console.log(`Response status: ${response.status}`)
-
-    // Clone the response to read it twice
-    const responseClone = response.clone()
-    const rawText = await responseClone.text()
-    console.log(`Raw response: ${rawText.substring(0, 500)}${rawText.length > 500 ? "..." : ""}`)
-
-    // Try to parse as JSON if possible
-    let data
-    try {
-      data = JSON.parse(rawText)
-    } catch (e) {
-      console.log("Response is not valid JSON")
-      data = rawText
-    }
-
-    // Si la respuesta no es exitosa, manejar el error
-    if (!response.ok) {
-      // Si el error es de autenticación (401), limpiar el token
-      if (response.status === 401) {
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("pred_token")
+      if (!response.ok) {
+        return {
+          success: false,
+          message: data.message || `Error ${response.status}`,
+          error: data.error,
         }
       }
 
       return {
+        success: true,
+        message: data.message || "Operación exitosa",
+        data: data,
+      }
+    } else {
+      const text = await response.text()
+      return {
         success: false,
-        message: data.message || `Error HTTP: ${response.status}`,
-        data: null,
-        status: response.status,
-        rawResponse: data,
+        message: text || `Error ${response.status}`,
       }
     }
-
-    // Return a standardized response
-    return {
-      success: true,
-      message: data.message || "Operación exitosa",
-      data: data.data || data,
-      status: response.status,
-      rawResponse: data,
-    }
   } catch (error) {
-    console.error("Error en fetchWithAuth:", error)
-
-    // Devolver un objeto de error estructurado
     return {
       success: false,
-      message: error instanceof Error ? error.message : "Error desconocido",
-      data: null,
-      status: 0,
-      error,
+      message: "Error al procesar la respuesta del servidor",
     }
   }
 }
 
-/**
- * Método GET
- */
-export async function get(endpoint: string, params: Record<string, any> = {}) {
-  return fetchWithAuth(endpoint, params)
+// Función GET
+export const get = async (endpoint: string): Promise<ApiResponse> => {
+  try {
+    const token = getToken()
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    }
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+
+    const response = await fetch(`${API_URL}/${endpoint}`, {
+      method: "GET",
+      headers,
+    })
+
+    return handleResponse(response)
+  } catch (error) {
+    console.error("Error en GET request:", error)
+    return {
+      success: false,
+      message: "Error de conexión con el servidor",
+    }
+  }
 }
 
-/**
- * Método POST
- */
-export async function post(endpoint: string, body: any) {
-  return fetchWithAuth(
-    endpoint,
-    {},
-    {
+// Función POST
+export const post = async (endpoint: string, data: any): Promise<ApiResponse> => {
+  try {
+    const token = getToken()
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    }
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+
+    const response = await fetch(`${API_URL}/${endpoint}`, {
       method: "POST",
-      body: JSON.stringify(body),
-    },
-  )
+      headers,
+      body: JSON.stringify(data),
+    })
+
+    return handleResponse(response)
+  } catch (error) {
+    console.error("Error en POST request:", error)
+    return {
+      success: false,
+      message: "Error de conexión con el servidor",
+    }
+  }
 }
 
-/**
- * Método PUT
- */
-export async function put(endpoint: string, body: any) {
-  return fetchWithAuth(
-    endpoint,
-    {},
-    {
+// Función PUT
+export const put = async (endpoint: string, data: any): Promise<ApiResponse> => {
+  try {
+    const token = getToken()
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    }
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+
+    const response = await fetch(`${API_URL}/${endpoint}`, {
       method: "PUT",
-      body: JSON.stringify(body),
-    },
-  )
+      headers,
+      body: JSON.stringify(data),
+    })
+
+    return handleResponse(response)
+  } catch (error) {
+    console.error("Error en PUT request:", error)
+    return {
+      success: false,
+      message: "Error de conexión con el servidor",
+    }
+  }
 }
 
-/**
- * Método DELETE
- */
-export async function del(endpoint: string) {
-  return fetchWithAuth(
-    endpoint,
-    {},
-    {
+// Función DELETE
+export const del = async (endpoint: string): Promise<ApiResponse> => {
+  try {
+    const token = getToken()
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    }
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+
+    const response = await fetch(`${API_URL}/${endpoint}`, {
       method: "DELETE",
-    },
-  )
-}
+      headers,
+    })
 
+    return handleResponse(response)
+  } catch (error) {
+    console.error("Error en DELETE request:", error)
+    return {
+      success: false,
+      message: "Error de conexión con el servidor",
+    }
+  }
+}

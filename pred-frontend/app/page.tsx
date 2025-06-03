@@ -37,15 +37,23 @@ export default function Home() {
         setLoading(true)
         const response = await getEscenarios()
 
-        if (response.success) {
-          // The API returns data.data as the array of escenarios
-          if (response.data && response.data.data && Array.isArray(response.data.data)) {
-            // Take only the first 3 escenarios
-            setEscenarios(response.data.data.slice(0, 3))
+        if (response.success && response.data) {
+          let escenariosData: Escenario[] = []
+
+          // Manejar la estructura anidada de la respuesta real del API
+          if (response.data.data && Array.isArray(response.data.data)) {
+            // Estructura: { success: true, data: { data: [...], pagination: {...} } }
+            escenariosData = response.data.data
+          } else if (Array.isArray(response.data)) {
+            // Estructura: { success: true, data: [...] }
+            escenariosData = response.data
           } else {
-            console.error("Formato de respuesta inesperado:", response.data)
-            setEscenarios(getDefaultEscenarios())
+            console.warn("Estructura de datos inesperada:", response.data)
+            escenariosData = getDefaultEscenarios()
           }
+
+          // Tomar solo los primeros 3 escenarios para la página principal
+          setEscenarios(escenariosData.slice(0, 3))
         } else {
           console.error("Error al cargar escenarios:", response.message)
           setEscenarios(getDefaultEscenarios())
@@ -66,33 +74,39 @@ export default function Home() {
     return [
       {
         id: 1,
-        nombre: "Estadio El Campín",
-        descripcion: "Estadio principal de la ciudad con capacidad para eventos deportivos de gran escala.",
-        direccion: "Calle 57 #30-80",
-        localidad: "Teusaquillo",
-        capacidad: 36000,
-        deporte: "Fútbol",
-        imagen: null,
+        nombre: "Estadio Jaime Morón",
+        descripcion: "El principal escenario deportivo para la práctica del fútbol en la ciudad de Cartagena.",
+        direccion: "Barrio Olaya Herrera, Cartagena",
+        localidad: { id: 2, nombre: "Olaya Herrera" },
+        capacidad: 16000,
+        deporte_principal: { id: 1, nombre: "Fútbol", icono: "⚽" },
+        imagen_principal: "estadio_jaime_moron.jpg",
+        dimensiones: "105m x 68m",
+        estado: "disponible",
       },
       {
         id: 2,
-        nombre: "Coliseo El Salitre",
-        descripcion: "Coliseo cubierto ideal para prácticas de baloncesto y competencias.",
-        direccion: "Av. 68 #63-45",
-        localidad: "Fontibón",
-        capacidad: 5000,
-        deporte: "Baloncesto",
-        imagen: null,
+        nombre: "Estadio de Béisbol Once de Noviembre",
+        descripcion: "Estadio de béisbol con capacidad para 12.000 espectadores, iluminación nocturna y palcos VIP.",
+        direccion: "Centro, Cartagena",
+        localidad: { id: 1, nombre: "Centro" },
+        capacidad: 12000,
+        deporte_principal: { id: 2, nombre: "Béisbol", icono: "⚾" },
+        imagen_principal: "estadio_beisbol.jpg",
+        dimensiones: "120m x 120m",
+        estado: "disponible",
       },
       {
         id: 3,
-        nombre: "Complejo de Tenis",
-        descripcion: "Canchas profesionales de tenis con iluminación y servicio completo.",
-        direccion: "Calle 170 #8-20",
-        localidad: "Usaquén",
+        nombre: "Complejo Acuático Jaime González Johnson",
+        descripcion: "Complejo con piscina olímpica de 50 metros, piscina de clavados y áreas de entrenamiento.",
+        direccion: "Centro, Cartagena",
+        localidad: { id: 1, nombre: "Centro" },
         capacidad: 1000,
-        deporte: "Tenis",
-        imagen: null,
+        deporte_principal: { id: 4, nombre: "Natación", icono: "🏊" },
+        imagen_principal: "complejo_acuatico.jpg",
+        dimensiones: "50m x 25m",
+        estado: "disponible",
       },
     ]
   }
@@ -294,9 +308,17 @@ export default function Home() {
                   <div key={escenario.id} className="bg-white rounded-lg shadow-md overflow-hidden">
                     <div className="h-48 bg-gray-200 relative">
                       <img
-                        src={escenario.imagen_principal || "/placeholder.svg?height=300&width=400"}
+                        src={
+                          escenario.imagen_principal
+                            ? `/images/${escenario.imagen_principal}`
+                            : "/placeholder.svg?height=300&width=400"
+                        }
                         alt={escenario.nombre}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.src = "/placeholder.svg?height=300&width=400"
+                        }}
                       />
                       <div className="absolute top-2 right-2 bg-primary-green text-white px-2 py-1 rounded text-sm">
                         {escenario.deporte_principal.nombre}
@@ -305,8 +327,12 @@ export default function Home() {
                     <div className="p-4">
                       <h3 className="text-xl font-bold mb-2">{escenario.nombre}</h3>
                       <p className="text-gray-600 mb-4 line-clamp-2">{escenario.descripcion}</p>
-                      <div className="flex justify-between items-center">
+                      <div className="flex justify-between items-center mb-2">
                         <div className="text-sm text-gray-500">{escenario.localidad.nombre}</div>
+                        <div className="text-sm text-gray-500">Capacidad: {escenario.capacidad.toLocaleString()}</div>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <div className="text-sm text-gray-500">{escenario.dimensiones}</div>
                         <Button className="bg-primary-green hover:bg-primary-dark-green" asChild>
                           <Link href={`/escenarios/${escenario.id}`}>Ver Detalles</Link>
                         </Button>
@@ -378,7 +404,7 @@ export default function Home() {
                       <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
                       <circle cx="12" cy="10" r="3" />
                     </svg>
-                    <span>Calle 123 # 45-67, Carategna, Colombia</span>
+                    <span>Calle 123 # 45-67, Cartagena, Colombia</span>
                   </div>
                 </div>
               </div>
@@ -524,4 +550,3 @@ export default function Home() {
     </div>
   )
 }
-

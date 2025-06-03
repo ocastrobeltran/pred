@@ -1,5 +1,42 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL 
 import { get, post, put } from "./api"
+
+export interface SolicitudData {
+  id: number
+  codigo_reserva: string
+  usuario: {
+    id: number
+    nombre: string
+    apellido: string
+    email: string
+  }
+  escenario: {
+    id: number
+    nombre: string
+    localidad: string
+  }
+  fecha_reserva: string
+  hora_inicio: string
+  hora_fin: string
+  proposito: {
+    id: number
+    nombre: string
+  }
+  num_participantes: number
+  estado: {
+    id: number
+    nombre: string
+    color: string
+  }
+  admin?: {
+    id: number
+    nombre: string
+    apellido: string
+  }
+  admin_notas?: string
+  fecha_respuesta?: string
+  notas: string
+  created_at: string
+}
 
 export interface Solicitud {
   id?: number
@@ -19,102 +56,120 @@ export interface SolicitudFilter {
   fecha_inicio?: string
   fecha_fin?: string
   escenario_id?: number | string
+  usuario_id?: number | string
+  limit?: number
 }
+
+export interface EstadoSolicitud {
+  id: number
+  nombre: string
+  color: string
+}
+
+// Mock data para fallback
+const getMockSolicitudes = () => [
+  {
+    id: 1,
+    codigo_reserva: "RES-20250128-1234",
+    escenario: {
+      id: 1,
+      nombre: "Estadio Jaime Morón",
+      localidad: "Olaya Herrera",
+    },
+    usuario: {
+      id: 1,
+      nombre: "Juan",
+      apellido: "Pérez",
+      email: "juan.perez@email.com",
+    },
+    fecha_reserva: "2025-02-15",
+    hora_inicio: "14:00",
+    hora_fin: "16:00",
+    estado: {
+      id: 1,
+      nombre: "pendiente",
+      color: "yellow",
+    },
+    proposito: {
+      id: 1,
+      nombre: "Entrenamiento deportivo",
+    },
+    num_participantes: 22,
+    notas: "Entrenamiento de fútbol para equipo juvenil.",
+    created_at: "2025-01-28T10:00:00Z",
+  },
+]
 
 /**
  * Obtiene la lista de solicitudes con paginación y filtros opcionales
  */
 export async function getSolicitudes(page = 1, filters: SolicitudFilter = {}) {
   try {
+    console.log("🔄 Llamando API de solicitudes con filtros:", { page, filters })
+
     const queryParams = new URLSearchParams({
       page: page.toString(),
-      ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== undefined)),
+      limit: (filters.limit || 10).toString(),
+      ...Object.fromEntries(
+        Object.entries(filters)
+          .filter(([key, value]) => key !== "limit" && value !== undefined && value !== "")
+          .map(([key, value]) => [key, String(value)]),
+      ),
     })
 
-    return get(`solicitudes?${queryParams.toString()}`)
+    const response = await get(`requests?${queryParams.toString()}`)
+    console.log("📥 Respuesta completa del API:", response)
+
+    if (response && response.success) {
+      console.log("✅ API respondió exitosamente")
+      console.log("📊 Datos recibidos:", response.data)
+
+      let solicitudesData: any[] = []
+
+      // ✅ CORRECCIÓN: Manejo de estructura triple anidada
+      if (response.data && response.data.data && response.data.data.data && Array.isArray(response.data.data.data)) {
+        solicitudesData = response.data.data.data
+        console.log(`✅ Extraídas ${solicitudesData.length} solicitudes de response.data.data.data (triple anidado)`)
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        solicitudesData = response.data.data
+        console.log(`✅ Extraídas ${solicitudesData.length} solicitudes de response.data.data (doble anidado)`)
+      } else if (Array.isArray(response.data)) {
+        solicitudesData = response.data
+        console.log(`✅ Extraídas ${solicitudesData.length} solicitudes de response.data (array directo)`)
+      } else {
+        console.warn("⚠️ Estructura de datos inesperada:", response.data)
+        solicitudesData = []
+      }
+
+      return response // Devolver la respuesta completa tal como viene
+    } else {
+      console.log("❌ API falló, usando datos mock")
+      return {
+        success: true,
+        message: "Solicitudes obtenidas exitosamente (mock)",
+        data: {
+          data: getMockSolicitudes(),
+          pagination: {
+            current_page: 1,
+            last_page: 1,
+            per_page: 10,
+            total: getMockSolicitudes().length,
+          },
+        },
+      }
+    }
   } catch (error) {
-    console.error("Error fetching solicitudes:", error)
-    // Return mock data
+    console.error("💥 Error en getSolicitudes:", error)
     return {
       success: true,
       message: "Solicitudes obtenidas exitosamente (mock)",
       data: {
-        data: [
-          {
-            id: 1,
-            codigo: "SOL-001",
-            escenario_id: 8,
-            escenario: {
-              nombre: "Coliseo Norton Madrid",
-              direccion: "Centro, Cartagena",
-            },
-            usuario_id: 1,
-            usuario: {
-              nombre: "Juan",
-              apellido: "Pérez",
-            },
-            fecha_reserva: "2025-03-20",
-            hora_inicio: "10:00:00",
-            hora_fin: "12:00:00",
-            proposito_id: 1,
-            proposito: "Evento deportivo",
-            num_participantes: 50,
-            estado: "aprobada",
-            created_at: "2025-03-19T10:00:00",
-            updated_at: "2025-03-19T12:00:00",
-          },
-          {
-            id: 2,
-            codigo: "SOL-002",
-            escenario_id: 7,
-            escenario: {
-              nombre: "Patinódromo de El Campestre",
-              direccion: "El Campestre, Cartagena",
-            },
-            usuario_id: 2,
-            usuario: {
-              nombre: "María",
-              apellido: "Gómez",
-            },
-            fecha_reserva: "2025-03-21",
-            hora_inicio: "14:00:00",
-            hora_fin: "16:00:00",
-            proposito_id: 2,
-            proposito: "Entrenamiento",
-            num_participantes: 20,
-            estado: "pendiente",
-            created_at: "2025-03-19T11:00:00",
-            updated_at: "2025-03-19T11:30:00",
-          },
-          {
-            id: 3,
-            codigo: "SOL-003",
-            escenario_id: 6,
-            escenario: {
-              nombre: "Estadio de Softbol de Chiquinquirá",
-              direccion: "Chiquinquirá, Cartagena",
-            },
-            usuario_id: 3,
-            usuario: {
-              nombre: "Carlos",
-              apellido: "López",
-            },
-            fecha_reserva: "2025-03-22",
-            hora_inicio: "09:00:00",
-            hora_fin: "11:00:00",
-            proposito_id: 3,
-            proposito: "Competencia",
-            num_participantes: 30,
-            estado: "rechazada",
-            created_at: "2025-03-19T12:00:00",
-            updated_at: "2025-03-19T12:30:00",
-          },
-        ],
+        data: getMockSolicitudes(),
         pagination: {
           current_page: 1,
           last_page: 1,
           per_page: 10,
-          total: 3,
+          total: getMockSolicitudes().length,
         },
       },
     }
@@ -126,39 +181,78 @@ export async function getSolicitudes(page = 1, filters: SolicitudFilter = {}) {
  */
 export async function getSolicitudById(id: number | string) {
   try {
-    return get(`solicitudes/${id}`)
+    console.log(`🔍 Obteniendo solicitud con ID: ${id}`)
+    const response = await get(`requests/${id}`)
+    console.log("📥 Respuesta de solicitud por ID:", response)
+
+    if (response && response.success) {
+      console.log("✅ API respondió exitosamente para solicitud individual")
+      console.log("📊 Datos recibidos:", response.data)
+
+      let solicitudData: any = null
+
+      // ✅ CORRECCIÓN: Manejo de estructura doble anidada para solicitud individual
+      if (response.data && response.data.data) {
+        solicitudData = response.data.data
+        console.log("✅ Extraída solicitud de response.data.data (doble anidado)")
+      } else if (response.data) {
+        solicitudData = response.data
+        console.log("✅ Extraída solicitud de response.data (directo)")
+      } else {
+        console.warn("⚠️ Estructura de datos inesperada:", response.data)
+        solicitudData = null
+      }
+
+      if (solicitudData) {
+        // Asegurar que el historial tenga el formato correcto
+        if (!solicitudData.historial || !Array.isArray(solicitudData.historial)) {
+          solicitudData.historial = [
+            {
+              id: 1,
+              estado_nuevo: solicitudData.estado,
+              usuario: solicitudData.usuario,
+              notas: "Solicitud creada",
+              created_at: solicitudData.created_at,
+            },
+          ]
+        }
+
+        return {
+          success: true,
+          message: response.message,
+          data: solicitudData,
+        }
+      } else {
+        throw new Error("No se pudieron extraer los datos de la solicitud")
+      }
+    } else {
+      // Fallback a datos mock
+      const mockSolicitud = getMockSolicitudes().find((s) => s.id === Number(id))
+      if (mockSolicitud) {
+        return {
+          success: true,
+          message: "Solicitud obtenida exitosamente (mock)",
+          data: {
+            ...mockSolicitud,
+            historial: [
+              {
+                id: 1,
+                estado_nuevo: mockSolicitud.estado,
+                usuario: mockSolicitud.usuario,
+                notas: "Solicitud creada",
+                created_at: mockSolicitud.created_at,
+              },
+            ],
+          },
+        }
+      }
+      throw new Error("Solicitud no encontrada")
+    }
   } catch (error) {
-    console.error("Error fetching solicitud:", error)
-    // Return mock data
+    console.error("💥 Error en getSolicitudById:", error)
     return {
-      success: true,
-      message: "Solicitud obtenida exitosamente (mock)",
-      data: {
-        id: Number(id),
-        codigo: `SOL-00${id}`,
-        escenario_id: 1,
-        escenario: {
-          nombre: "Estadio El Campín",
-          direccion: "Calle 57 #21-83, Bogotá",
-          capacidad: 36343,
-        },
-        usuario_id: 1,
-        usuario: {
-          nombre: "Juan",
-          apellido: "Pérez",
-        },
-        fecha_reserva: "2023-06-15",
-        hora_inicio: "15:00:00",
-        hora_fin: "17:00:00",
-        proposito_id: 1,
-        proposito: "Evento deportivo",
-        num_participantes: 20,
-        notas: "Necesitamos acceso a los vestidores",
-        admin_notas: "Aprobado sin observaciones",
-        estado: "aprobada",
-        created_at: "2023-06-01T10:00:00",
-        updated_at: "2023-06-02T14:30:00",
-      },
+      success: false,
+      message: "No se pudo cargar la solicitud",
     }
   }
 }
@@ -166,33 +260,17 @@ export async function getSolicitudById(id: number | string) {
 /**
  * Crea una nueva solicitud de reserva
  */
-export async function createSolicitud(solicitud: Solicitud, token?: string) {
+export async function createSolicitud(solicitud: Solicitud) {
   try {
-    const response = await fetch(`${API_URL}/solicitudes`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      body: JSON.stringify(solicitud),
-    })
-
-    const contentType = response.headers.get("content-type")
-    if (!response.ok) {
-      const text = await response.text()
-      throw new Error(text)
-    }
-    if (contentType && contentType.includes("application/json")) {
-      return await response.json()
-    } else {
-      throw new Error("Respuesta inesperada del servidor")
-    }
+    console.log("📝 Creando solicitud:", solicitud)
+    const response = await post("requests", solicitud)
+    console.log("📥 Respuesta de creación:", response)
+    return response
   } catch (error) {
-    console.error("Error creating solicitud:", error)
+    console.error("💥 Error en createSolicitud:", error)
     return {
       success: false,
       message: "No se pudo crear la solicitud",
-      data: null,
     }
   }
 }
@@ -201,32 +279,75 @@ export async function createSolicitud(solicitud: Solicitud, token?: string) {
  * Cambia el estado de una solicitud (admin/supervisor)
  */
 export async function cambiarEstadoSolicitud(id: number | string, estado: string, adminNotas?: string) {
-  return put(`solicitudes/${id}/cambiar-estado`, {
-    estado,
-    admin_notas: adminNotas,
-  })
+  try {
+    return await put(`requests/${id}/cambiar-estado`, {
+      estado,
+      admin_notas: adminNotas,
+    })
+  } catch (error) {
+    console.error("💥 Error en cambiarEstadoSolicitud:", error)
+    return {
+      success: false,
+      message: "No se pudo cambiar el estado de la solicitud",
+    }
+  }
 }
 
 /**
  * Busca una solicitud por código
  */
 export async function buscarSolicitudPorCodigo(codigo: string) {
-  return get(`solicitudes/buscar?codigo=${codigo}`)
+  try {
+    return await get(`requests/buscar?codigo=${codigo}`)
+  } catch (error) {
+    console.error("💥 Error en buscarSolicitudPorCodigo:", error)
+    return {
+      success: false,
+      message: "No se pudo buscar la solicitud",
+    }
+  }
 }
 
 /**
  * Obtiene la lista de estados de solicitud
  */
 export async function getEstadosSolicitud() {
-  return {
-    success: true,
-    message: "Estados obtenidos exitosamente (mock)",
-    data: [
-      { id: 1, nombre: "pendiente" },
-      { id: 2, nombre: "aprobada" },
-      { id: 3, nombre: "rechazada" },
-      { id: 4, nombre: "completada" },
-    ],
+  try {
+    console.log("🔄 Obteniendo estados de solicitud")
+    const response = await get("request-states")
+    console.log("📥 Respuesta de estados:", response)
+
+    if (response && response.success) {
+      return response
+    } else {
+      console.log("🔄 Estados falló, usando mock")
+      return {
+        success: true,
+        message: "Estados obtenidos exitosamente (mock)",
+        data: [
+          { id: 1, nombre: "creada", color: "#FFC107" },
+          { id: 2, nombre: "pendiente", color: "#FFC107" },
+          { id: 3, nombre: "en_proceso", color: "#007BFF" },
+          { id: 4, nombre: "aprobada", color: "#28A745" },
+          { id: 5, nombre: "rechazada", color: "#DC3545" },
+          { id: 6, nombre: "completada", color: "#6C757D" },
+        ],
+      }
+    }
+  } catch (error) {
+    console.error("💥 Error en getEstadosSolicitud:", error)
+    return {
+      success: true,
+      message: "Estados obtenidos exitosamente (mock)",
+      data: [
+        { id: 1, nombre: "creada", color: "#FFC107" },
+        { id: 2, nombre: "pendiente", color: "#FFC107" },
+        { id: 3, nombre: "en_proceso", color: "#007BFF" },
+        { id: 4, nombre: "aprobada", color: "#28A745" },
+        { id: 5, nombre: "rechazada", color: "#DC3545" },
+        { id: 6, nombre: "completada", color: "#6C757D" },
+      ],
+    }
   }
 }
 
@@ -235,21 +356,37 @@ export async function getEstadosSolicitud() {
  */
 export async function getPropositos() {
   try {
-    return get("solicitudes/propositos")
+    console.log("🔄 Obteniendo propósitos")
+    const response = await get("purposes")
+    console.log("📥 Respuesta de propósitos:", response)
+
+    if (response && response.success) {
+      return response
+    } else {
+      return {
+        success: true,
+        message: "Propósitos obtenidos exitosamente (mock)",
+        data: [
+          { id: 1, nombre: "Entrenamiento" },
+          { id: 2, nombre: "Competencia" },
+          { id: 3, nombre: "Evento deportivo" },
+          { id: 4, nombre: "Recreación" },
+          { id: 5, nombre: "Clase" },
+        ],
+      }
+    }
   } catch (error) {
-    console.error("Error fetching propósitos:", error)
-    // Return mock data
+    console.error("💥 Error en getPropositos:", error)
     return {
       success: true,
       message: "Propósitos obtenidos exitosamente (mock)",
       data: [
-        { id: 1, nombre: "Evento deportivo" },
-        { id: 2, nombre: "Entrenamiento" },
-        { id: 3, nombre: "Competencia" },
+        { id: 1, nombre: "Entrenamiento" },
+        { id: 2, nombre: "Competencia" },
+        { id: 3, nombre: "Evento deportivo" },
         { id: 4, nombre: "Recreación" },
         { id: 5, nombre: "Clase" },
       ],
     }
   }
 }
-

@@ -2,144 +2,159 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import { useAuth } from "@/context/auth-context"
-import { getSolicitudes } from "@/services/solicitud-service"
-import { getEscenarios } from "@/services/escenario-service"
-import { contarNoLeidas } from "@/services/notificacion-service"
-
-// Función helper para renderizar datos de forma segura
-const safeRender = (data: any, fallback = "N/A") => {
-  if (data === null || data === undefined) return fallback
-  if (typeof data === 'object') {
-    return data.nombre || data.name || fallback
-  }
-  return String(data)
-}
+import { getSolicitudes, type SolicitudData } from "@/services/solicitud-service"
+import { getNotificaciones, contarNoLeidas, type NotificacionData } from "@/services/notificacion-service"
+import { useToast } from "@/hooks/use-toast"
+import { HydrationBoundary } from "@/components/hydration-boundary"
+import Link from "next/link"
+import { Calendar, Clock, Bell, FileText, Building, ArrowRight, User } from "lucide-react"
 
 export default function DashboardPage() {
   const { user } = useAuth()
+  const { toast } = useToast()
+  const [solicitudes, setSolicitudes] = useState<SolicitudData[]>([])
+  const [notificaciones, setNotificaciones] = useState<NotificacionData[]>([])
   const [loading, setLoading] = useState(true)
-  const [dashboardData, setDashboardData] = useState({
-    reservasActivas: 0,
+  const [stats, setStats] = useState({
     solicitudesPendientes: 0,
-    escenariosDisponibles: 0,
+    solicitudesAprobadas: 0,
     notificacionesNoLeidas: 0,
-    reservasRecientes: [],
-    escenariosDestacados: [],
   })
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      setLoading(true)
+    const fetchData = async () => {
       try {
-        // Obtener datos de solicitudes
-        const solicitudesResponse = await getSolicitudes()
+        setLoading(true)
+        console.log("🔄 Dashboard: Iniciando carga de datos...")
 
-        // Obtener datos de escenarios
-        const escenariosResponse = await getEscenarios()
+        // Cargar solicitudes del usuario actual
+        const solicitudesRes = await getSolicitudes(1, { limit: 50 })
+        console.log("📥 Dashboard: Respuesta de solicitudes:", solicitudesRes)
 
-        // Obtener conteo de notificaciones
-        const notificacionesResponse = await contarNoLeidas()
+        if (solicitudesRes && solicitudesRes.success && solicitudesRes.data) {
+          console.log("✅ Dashboard: Procesando solicitudes...")
 
-        // Procesar datos de solicitudes
-        let solicitudes = []
-        if (solicitudesResponse.success && solicitudesResponse.data && solicitudesResponse.data.data) {
-          solicitudes = solicitudesResponse.data.data
-        }
+          // ✅ CORRECCIÓN: Aplicar la misma lógica de triple anidamiento
+          let solicitudesData: SolicitudData[] = []
 
-        // Procesar datos de escenarios
-        let escenarios = []
-        if (escenariosResponse.success) {
-          if (Array.isArray(escenariosResponse.data)) {
-            escenarios = escenariosResponse.data
-          } else if (escenariosResponse.data && Array.isArray(escenariosResponse.data.data)) {
-            escenarios = escenariosResponse.data.data
+          // Caso 1: Triple anidamiento response.data.data.data
+          if (
+            solicitudesRes.data.data &&
+            solicitudesRes.data.data.data &&
+            Array.isArray(solicitudesRes.data.data.data)
+          ) {
+            solicitudesData = solicitudesRes.data.data.data
+            console.log(
+              `✅ Dashboard: Extraídas ${solicitudesData.length} solicitudes de response.data.data.data (triple anidado)`,
+            )
           }
+          // Caso 2: Doble anidamiento response.data.data
+          else if (solicitudesRes.data.data && Array.isArray(solicitudesRes.data.data)) {
+            solicitudesData = solicitudesRes.data.data
+            console.log(
+              `✅ Dashboard: Extraídas ${solicitudesData.length} solicitudes de response.data.data (doble anidado)`,
+            )
+          }
+          // Caso 3: Array directo response.data
+          else if (Array.isArray(solicitudesRes.data)) {
+            solicitudesData = solicitudesRes.data
+            console.log(
+              `✅ Dashboard: Extraídas ${solicitudesData.length} solicitudes de response.data (array directo)`,
+            )
+          } else {
+            console.warn("⚠️ Dashboard: Estructura de solicitudes inesperada:", solicitudesRes.data)
+            solicitudesData = []
+          }
+
+          console.log("🔍 Dashboard: Solicitudes procesadas:", solicitudesData)
+          console.log("📊 Dashboard: Primera solicitud:", solicitudesData[0])
+          setSolicitudes(solicitudesData)
+
+          // Calcular estadísticas de solicitudes
+          const pendientes = solicitudesData.filter(
+            (s) => s.estado?.nombre === "pendiente" || s.estado?.nombre === "creada",
+          ).length
+          const aprobadas = solicitudesData.filter((s) => s.estado?.nombre === "aprobada").length
+
+          console.log("📊 Dashboard: Estadísticas calculadas:", {
+            pendientes,
+            aprobadas,
+            total: solicitudesData.length,
+          })
+
+          setStats((prev) => ({
+            ...prev,
+            solicitudesPendientes: pendientes,
+            solicitudesAprobadas: aprobadas,
+          }))
+        } else {
+          console.error("❌ Dashboard: Error en respuesta de solicitudes:", solicitudesRes)
         }
 
-        // Calcular estadísticas
-        const reservasActivas = solicitudes.filter((s) => s.estado === "aprobada").length
-        const solicitudesPendientes = solicitudes.filter((s) => s.estado === "pendiente").length
-        const escenariosDisponibles = escenarios.length
-        const notificacionesNoLeidas = notificacionesResponse.success ? notificacionesResponse.data.count : 2
+        // Cargar notificaciones recientes - ✅ CORRECCIÓN: Sin parámetro limit
+        const notificacionesRes = await getNotificaciones(1)
+        console.log("📥 Dashboard: Respuesta de notificaciones:", notificacionesRes)
 
-        // Obtener reservas recientes (las 3 más recientes)
-        const reservasRecientes = solicitudes
-          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-          .slice(0, 3)
+        if (notificacionesRes && notificacionesRes.success && notificacionesRes.data) {
+          // ✅ CORRECCIÓN: Aplicar la misma lógica para notificaciones
+          let notificacionesData: NotificacionData[] = []
 
-        // Obtener escenarios destacados (3 aleatorios)
-        const escenariosDestacados = escenarios.sort(() => 0.5 - Math.random()).slice(0, 3)
+          // Triple anidamiento
+          if (
+            notificacionesRes.data.data &&
+            notificacionesRes.data.data.data &&
+            Array.isArray(notificacionesRes.data.data.data)
+          ) {
+            notificacionesData = notificacionesRes.data.data.data
+            console.log(`✅ Dashboard: Extraídas ${notificacionesData.length} notificaciones (triple anidado)`)
+          }
+          // Doble anidamiento
+          else if (notificacionesRes.data.data && Array.isArray(notificacionesRes.data.data)) {
+            notificacionesData = notificacionesRes.data.data
+            console.log(`✅ Dashboard: Extraídas ${notificacionesData.length} notificaciones (doble anidado)`)
+          }
+          // Array directo
+          else if (Array.isArray(notificacionesRes.data)) {
+            notificacionesData = notificacionesRes.data
+            console.log(`✅ Dashboard: Extraídas ${notificacionesData.length} notificaciones (array directo)`)
+          } else {
+            console.warn("⚠️ Dashboard: Estructura de notificaciones inesperada:", notificacionesRes.data)
+          }
 
-        setDashboardData({
-          reservasActivas,
-          solicitudesPendientes,
-          escenariosDisponibles,
-          notificacionesNoLeidas,
-          reservasRecientes,
-          escenariosDestacados,
-        })
+          // Limitar a 5 notificaciones para el dashboard
+          notificacionesData = notificacionesData.slice(0, 5)
+          console.log("🔔 Dashboard: Notificaciones procesadas:", notificacionesData)
+          setNotificaciones(notificacionesData)
+        }
+
+        // Contar notificaciones no leídas
+        const noLeidasRes = await contarNoLeidas()
+        console.log("📊 Dashboard: Respuesta de conteo no leídas:", noLeidasRes)
+
+        if (noLeidasRes && noLeidasRes.success && noLeidasRes.data) {
+          setStats((prev) => ({
+            ...prev,
+            notificacionesNoLeidas: noLeidasRes.data.count || 0,
+          }))
+        }
       } catch (error) {
-        console.error("Error al cargar datos del dashboard:", error)
-        // Usar datos simulados en caso de error
-        setDashboardData({
-          reservasActivas: 4,
-          solicitudesPendientes: 2,
-          escenariosDisponibles: 25,
-          notificacionesNoLeidas: 3,
-          reservasRecientes: [
-            {
-              id: 1,
-              escenario: { nombre: "Cancha de Fútbol #3" },
-              fecha_reserva: "2023-06-15",
-              hora_inicio: "15:00:00",
-              estado: "aprobada",
-            },
-            {
-              id: 2,
-              escenario: { nombre: "Pista de Atletismo" },
-              fecha_reserva: "2023-06-10",
-              hora_inicio: "18:00:00",
-              estado: "completada",
-            },
-            {
-              id: 3,
-              escenario: { nombre: "Cancha de Tenis #1" },
-              fecha_reserva: "2023-06-05",
-              hora_inicio: "10:00:00",
-              estado: "pendiente",
-            },
-          ],
-          escenariosDestacados: [
-            {
-              id: 1,
-              nombre: "Estadio Metropolitano",
-              deporte: "Fútbol",
-              localidad: "Kennedy",
-            },
-            {
-              id: 2,
-              nombre: "Complejo Acuático",
-              deporte: "Natación",
-              localidad: "Teusaquillo",
-            },
-            {
-              id: 3,
-              nombre: "Cancha de Baloncesto",
-              deporte: "Baloncesto",
-              localidad: "Chapinero",
-            },
-          ],
+        console.error("💥 Dashboard: Error al cargar datos:", error)
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los datos del dashboard",
+          variant: "destructive",
         })
       } finally {
         setLoading(false)
       }
     }
 
-    fetchDashboardData()
-  }, [])
+    if (user) {
+      fetchData()
+    }
+  }, [toast, user])
 
   if (loading) {
     return (
@@ -150,301 +165,246 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Dashboard</h1>
+    <HydrationBoundary>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Bienvenido, {user?.nombre}</h1>
+          <p className="text-muted-foreground">Aquí puedes gestionar tus reservas y ver notificaciones</p>
+        </div>
 
-      <Tabs defaultValue="resumen" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="resumen">Resumen</TabsTrigger>
-          <TabsTrigger value="actividad">Actividad Reciente</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="resumen" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Mis Reservas</CardTitle>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-4 w-4 text-muted-foreground"
-                >
-                  <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-                  <line x1="16" x2="16" y1="2" y2="6" />
-                  <line x1="8" x2="8" y1="2" y2="6" />
-                  <line x1="3" x2="21" y1="10" y2="10" />
-                </svg>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{dashboardData.reservasActivas}</div>
-                <p className="text-xs text-muted-foreground">Reservas activas en el último mes</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Solicitudes Pendientes</CardTitle>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-4 w-4 text-muted-foreground"
-                >
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{dashboardData.solicitudesPendientes}</div>
-                <p className="text-xs text-muted-foreground">Solicitudes esperando aprobación</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Escenarios Disponibles</CardTitle>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-4 w-4 text-muted-foreground"
-                >
-                  <path d="M12 21a9 9 0 0 0 0-18" />
-                  <path d="M3.6 9H12V0" />
-                  <path d="M12 3.6V12H20.4" />
-                </svg>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{dashboardData.escenariosDisponibles}</div>
-                <p className="text-xs text-muted-foreground">Escenarios para reservar</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Notificaciones</CardTitle>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-4 w-4 text-muted-foreground"
-                >
-                  <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-                  <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-                </svg>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{dashboardData.notificacionesNoLeidas}</div>
-                <p className="text-xs text-muted-foreground">Notificaciones sin leer</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="col-span-4">
-              <CardHeader>
-                <CardTitle>Mis Reservas Recientes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {dashboardData.reservasRecientes.length > 0 ? (
-                    dashboardData.reservasRecientes.map((reserva, index) => (
-                      <div key={reserva.id || index} className="rounded-lg border p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-semibold">
-                              {safeRender(reserva.escenario?.nombre, "Escenario")}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {reserva.fecha_reserva ? new Date(reserva.fecha_reserva).toLocaleDateString() : "Fecha no disponible"} -{" "}
-                              {reserva.hora_inicio?.substring(0, 5) || "Hora no disponible"}
-                            </p>
-                          </div>
-                          <div
-                            className={`rounded-full px-2 py-1 text-xs font-medium ${
-                              reserva.estado === "aprobada"
-                                ? "bg-green-100 text-green-800"
-                                : reserva.estado === "completada"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : reserva.estado === "pendiente"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : "bg-gray-100 text-gray-800"
-                            }`}
-                          >
-                            {safeRender(reserva.estado, "Estado")}
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-4 text-muted-foreground">No tienes reservas recientes</div>
-                  )}
-                </div>
-
-                <div className="mt-4 text-center">
-                  <Link href="/dashboard/mis-reservas" className="text-sm text-primary hover:underline">
-                    Ver todas mis reservas
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="col-span-3">
-              <CardHeader>
-                <CardTitle>Escenarios Destacados</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {dashboardData.escenariosDestacados.map((escenario, index) => (
-                    <div key={escenario.id || index} className="flex items-center space-x-3">
-                      <div className="h-12 w-12 rounded-md bg-gray-200 flex-shrink-0"></div>
-                      <div>
-                        <p className="font-semibold">{safeRender(escenario.nombre, "Escenario")}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {safeRender(escenario.deporte, "Deporte")} - {safeRender(escenario.localidad, "Localidad")}
-                        </p>
-                      </div>
-                    </div>
+        {/* Debug info - Temporal para diagnóstico */}
+        <Card className="bg-green-50 border-green-200">
+          <CardContent className="p-4">
+            <h3 className="font-semibold text-green-800 mb-2">🔍 Dashboard Debug</h3>
+            <div className="text-sm text-green-700 space-y-1">
+              <p>📊 Total solicitudes: {solicitudes.length}</p>
+              <p>⏳ Pendientes: {stats.solicitudesPendientes}</p>
+              <p>✅ Aprobadas: {stats.solicitudesAprobadas}</p>
+              <p>🔔 Notificaciones no leídas: {stats.notificacionesNoLeidas}</p>
+              <p>📧 Notificaciones cargadas: {notificaciones.length}</p>
+              <p>📝 Es array solicitudes: {Array.isArray(solicitudes) ? "Sí" : "No"}</p>
+              <p>
+                👤 Usuario actual: {user?.nombre} (ID: {user?.id})
+              </p>
+              {solicitudes.length > 0 && (
+                <div className="mt-2">
+                  <p className="font-medium">Estados de solicitudes:</p>
+                  {solicitudes.map((s, i) => (
+                    <span key={i} className="inline-block bg-green-100 px-2 py-1 rounded text-xs mr-1 mb-1">
+                      ID:{s.id} - {s.estado?.nombre || "sin estado"} - Usuario:{s.usuario?.id}
+                    </span>
                   ))}
                 </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-                <div className="mt-4 text-center">
-                  <Link href="/escenarios" className="text-sm text-primary hover:underline">
-                    Explorar todos los escenarios
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="actividad" className="space-y-4">
+        {/* Tarjetas de estadísticas */}
+        <div className="grid gap-4 md:grid-cols-3">
           <Card>
-            <CardHeader>
-              <CardTitle>Actividad Reciente</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Solicitudes Pendientes</CardTitle>
+              <FileText className="h-4 w-4 text-yellow-600" />
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-start gap-4 border-b pb-4">
-                <div className="rounded-full bg-primary/10 p-2">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-4 w-4 text-primary"
-                  >
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M21 15v-2a4 4 0 0 0-4-4h-2.5" />
-                    <path d="M17 1v4" />
-                    <path d="M19 3h-4" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="font-medium">Tu solicitud para la Cancha de Fútbol #3 ha sido aprobada</p>
-                  <p className="text-sm text-muted-foreground">Hace 2 horas</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4 border-b pb-4">
-                <div className="rounded-full bg-primary/10 p-2">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-4 w-4 text-primary"
-                  >
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="font-medium">Se ha agregado un nuevo escenario deportivo en Usaquén</p>
-                  <p className="text-sm text-muted-foreground">Hace 1 día</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4 border-b pb-4">
-                <div className="rounded-full bg-primary/10 p-2">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-4 w-4 text-primary"
-                  >
-                    <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-                    <line x1="16" x2="16" y1="2" y2="6" />
-                    <line x1="8" x2="8" y1="2" y2="6" />
-                    <line x1="3" x2="21" y1="10" y2="10" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="font-medium">Recordatorio: Tienes una reserva para mañana a las 4:00 PM</p>
-                  <p className="text-sm text-muted-foreground">Hace 2 días</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="rounded-full bg-primary/10 p-2">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-4 w-4 text-primary"
-                  >
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="font-medium">Tu perfil ha sido actualizado correctamente</p>
-                  <p className="text-sm text-muted-foreground">Hace 5 días</p>
-                </div>
-              </div>
-
-              <div className="mt-4 text-center">
-                <Link href="/dashboard/notificaciones" className="text-sm text-primary hover:underline">
-                  Ver todas las notificaciones
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.solicitudesPendientes}</div>
+              <p className="text-xs text-muted-foreground">Esperando aprobación</p>
+              <Button variant="link" size="sm" className="mt-2 px-0" asChild>
+                <Link href="/dashboard/solicitudes?tab=pendientes">
+                  Ver solicitudes <ArrowRight className="ml-1 h-4 w-4" />
                 </Link>
-              </div>
+              </Button>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Reservas Aprobadas</CardTitle>
+              <Calendar className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.solicitudesAprobadas}</div>
+              <p className="text-xs text-muted-foreground">Reservas confirmadas</p>
+              <Button variant="link" size="sm" className="mt-2 px-0" asChild>
+                <Link href="/dashboard/solicitudes?tab=aprobadas">
+                  Ver reservas <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Notificaciones</CardTitle>
+              <Bell className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.notificacionesNoLeidas}</div>
+              <p className="text-xs text-muted-foreground">No leídas</p>
+              <Button variant="link" size="sm" className="mt-2 px-0" asChild>
+                <Link href="/dashboard/notificaciones">
+                  Ver notificaciones <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Actividad reciente y próximas reservas */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Próximas reservas */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Próximas Reservas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {Array.isArray(solicitudes) && solicitudes.filter((s) => s.estado?.nombre === "aprobada").length > 0 ? (
+                <div className="space-y-4">
+                  {solicitudes
+                    .filter((s) => s.estado?.nombre === "aprobada")
+                    .slice(0, 3)
+                    .map((solicitud) => (
+                      <div key={solicitud.id} className="flex items-start gap-3 border-b pb-3 last:border-0">
+                        <div className="rounded-md bg-primary-light-green p-2">
+                          <Calendar className="h-4 w-4 text-primary-green" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium">{solicitud.escenario?.nombre || "Escenario"}</h4>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            <span>
+                              {new Date(solicitud.fecha_reserva).toLocaleDateString()} • {solicitud.hora_inicio} -{" "}
+                              {solicitud.hora_fin}
+                            </span>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={`/dashboard/solicitudes/${solicitud.id}`}>Ver</Link>
+                        </Button>
+                      </div>
+                    ))}
+                  <Button variant="outline" size="sm" className="w-full" asChild>
+                    <Link href="/dashboard/solicitudes?tab=aprobadas">Ver todas las reservas</Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <Calendar className="mb-2 h-10 w-10 text-muted-foreground" />
+                  <h3 className="text-lg font-medium">No tienes reservas próximas</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Cuando tus solicitudes sean aprobadas, aparecerán aquí
+                  </p>
+                  <Button className="mt-4 bg-primary-green hover:bg-primary-dark-green" asChild>
+                    <Link href="/escenarios">Reservar escenario</Link>
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Notificaciones recientes */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                Notificaciones Recientes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {Array.isArray(notificaciones) && notificaciones.length > 0 ? (
+                <div className="space-y-4">
+                  {notificaciones.slice(0, 3).map((notificacion) => (
+                    <div key={notificacion.id} className="flex items-start gap-3 border-b pb-3 last:border-0">
+                      <div
+                        className={`rounded-md p-2 ${
+                          notificacion.tipo === "success"
+                            ? "bg-green-100"
+                            : notificacion.tipo === "warning"
+                              ? "bg-yellow-100"
+                              : notificacion.tipo === "error"
+                                ? "bg-red-100"
+                                : "bg-blue-100"
+                        }`}
+                      >
+                        <Bell
+                          className={`h-4 w-4 ${
+                            notificacion.tipo === "success"
+                              ? "text-green-600"
+                              : notificacion.tipo === "warning"
+                                ? "text-yellow-600"
+                                : notificacion.tipo === "error"
+                                  ? "text-red-600"
+                                  : "text-blue-600"
+                          }`}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium">{notificacion.titulo}</h4>
+                        <p className="text-sm text-muted-foreground line-clamp-1">{notificacion.mensaje}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(notificacion.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                      {notificacion.url && (
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={notificacion.url}>Ver</Link>
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <Button variant="outline" size="sm" className="w-full" asChild>
+                    <Link href="/dashboard/notificaciones">Ver todas las notificaciones</Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <Bell className="mb-2 h-10 w-10 text-muted-foreground" />
+                  <h3 className="text-lg font-medium">No tienes notificaciones recientes</h3>
+                  <p className="text-sm text-muted-foreground">Las actualizaciones importantes aparecerán aquí</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Accesos rápidos */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Accesos Rápidos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <Button variant="outline" className="h-auto flex-col items-center justify-center p-6 space-y-2" asChild>
+                <Link href="/escenarios">
+                  <Building className="h-8 w-8 mb-2" />
+                  <span className="text-lg font-medium">Explorar Escenarios</span>
+                  <span className="text-sm text-muted-foreground text-center">
+                    Busca y reserva escenarios deportivos
+                  </span>
+                </Link>
+              </Button>
+              <Button variant="outline" className="h-auto flex-col items-center justify-center p-6 space-y-2" asChild>
+                <Link href="/dashboard/solicitudes">
+                  <FileText className="h-8 w-8 mb-2" />
+                  <span className="text-lg font-medium">Mis Solicitudes</span>
+                  <span className="text-sm text-muted-foreground text-center">Revisa el estado de tus reservas</span>
+                </Link>
+              </Button>
+              <Button variant="outline" className="h-auto flex-col items-center justify-center p-6 space-y-2" asChild>
+                <Link href="/dashboard/perfil">
+                  <User className="h-8 w-8 mb-2" />
+                  <span className="text-lg font-medium">Mi Perfil</span>
+                  <span className="text-sm text-muted-foreground text-center">Actualiza tu información personal</span>
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </HydrationBoundary>
   )
 }
-

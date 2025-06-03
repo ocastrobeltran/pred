@@ -1,9 +1,10 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { SolicitudForm } from "@/components/forms/solicitud-form"
 import { useAuth } from "@/context/auth-context"
 import { Button } from "@/components/ui/button"
 import { MapPin, Calendar, Clock } from "lucide-react"
@@ -12,8 +13,26 @@ import { getEscenarioById } from "@/services/escenario-service"
 import { getPropositos, createSolicitud } from "@/services/solicitud-service"
 import { useToast } from "@/hooks/use-toast"
 
-// Mock data for escenarios since the backend isn't working correctly
-const MOCK_ESCENARIOS = {
+// ✅ CORRECCIÓN: Tipo con índice de string
+interface MockEscenario {
+  id: number
+  nombre: string
+  descripcion: string
+  direccion: string
+  localidad: string
+  capacidad: number
+  dimensiones: string
+  deporte: string
+  estado: string
+  imagenes: Array<{
+    id: number
+    url_imagen: string
+    es_principal: boolean
+  }>
+}
+
+// ✅ CORRECCIÓN: Objeto con índice de string
+const MOCK_ESCENARIOS: { [key: string]: MockEscenario } = {
   "1": {
     id: 1,
     nombre: "Estadio Jaime Morón",
@@ -34,8 +53,7 @@ const MOCK_ESCENARIOS = {
   "2": {
     id: 2,
     nombre: "Estadio de Béisbol Once de Noviembre",
-    descripcion:
-      "Estadio de béisbol con capacidad para 12.000 espectadores, iluminación nocturna y palcos VIP.",
+    descripcion: "Estadio de béisbol con capacidad para 12.000 espectadores, iluminación nocturna y palcos VIP.",
     direccion: "Centro, Cartagena",
     localidad: "Centro",
     capacidad: 12000,
@@ -51,8 +69,7 @@ const MOCK_ESCENARIOS = {
   "3": {
     id: 3,
     nombre: "Complejo Acuático Jaime González Johnson",
-    descripcion:
-      "Complejo con piscina olímpica de 50 metros, piscina de clavados y áreas de entrenamiento.",
+    descripcion: "Complejo con piscina olímpica de 50 metros, piscina de clavados y áreas de entrenamiento.",
     direccion: "Centro, Cartagena",
     localidad: "Centro",
     capacidad: 1000,
@@ -68,8 +85,7 @@ const MOCK_ESCENARIOS = {
   "4": {
     id: 4,
     nombre: "Pista de Atletismo Campo Elías Gutiérrez",
-    descripcion:
-      "Pista de atletismo con superficie sintética, 8 carriles y áreas para saltos y lanzamientos.",
+    descripcion: "Pista de atletismo con superficie sintética, 8 carriles y áreas para saltos y lanzamientos.",
     direccion: "Centro, Cartagena",
     localidad: "Centro",
     capacidad: 3000,
@@ -85,8 +101,7 @@ const MOCK_ESCENARIOS = {
   "5": {
     id: 5,
     nombre: "Coliseo de Combate y Gimnasia",
-    descripcion:
-      "Coliseo especializado para deportes de combate y gimnasia con áreas de entrenamiento.",
+    descripcion: "Coliseo especializado para deportes de combate y gimnasia con áreas de entrenamiento.",
     direccion: "Centro, Cartagena",
     localidad: "Centro",
     capacidad: 2000,
@@ -102,8 +117,7 @@ const MOCK_ESCENARIOS = {
   "6": {
     id: 6,
     nombre: "Estadio de Softbol de Chiquinquirá",
-    descripcion:
-      "Campo de softbol con gradas, iluminación y servicios complementarios para eventos deportivos.",
+    descripcion: "Campo de softbol con gradas, iluminación y servicios complementarios para eventos deportivos.",
     direccion: "Chiquinquirá, Cartagena",
     localidad: "Chiquinquirá",
     capacidad: 3000,
@@ -119,8 +133,7 @@ const MOCK_ESCENARIOS = {
   "7": {
     id: 7,
     nombre: "Patinódromo de El Campestre",
-    descripcion:
-      "Pista de patinaje de velocidad con superficie especializada y graderías para espectadores.",
+    descripcion: "Pista de patinaje de velocidad con superficie especializada y graderías para espectadores.",
     direccion: "El Campestre, Cartagena",
     localidad: "El Campestre",
     capacidad: 1500,
@@ -136,8 +149,7 @@ const MOCK_ESCENARIOS = {
   "8": {
     id: 8,
     nombre: "Coliseo Norton Madrid",
-    descripcion:
-      "Coliseo multiusos con cancha de baloncesto, voleibol y eventos culturales.",
+    descripcion: "Coliseo multiusos con cancha de baloncesto, voleibol y eventos culturales.",
     direccion: "Centro, Cartagena",
     localidad: "Centro",
     capacidad: 4000,
@@ -150,7 +162,7 @@ const MOCK_ESCENARIOS = {
       { id: 24, url_imagen: "coliseo_norton_3.jpg", es_principal: false },
     ],
   },
-};
+}
 
 interface Escenario {
   id: number
@@ -184,6 +196,8 @@ export default function ReservarPage() {
   const [loadingEscenario, setLoadingEscenario] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [propositos, setPropositos] = useState<Proposito[]>([])
+  const [loadingPropositos, setLoadingPropositos] = useState(true)
+  const [mounted, setMounted] = useState(false)
   const [form, setForm] = useState({
     proposito_id: "",
     num_participantes: "",
@@ -191,7 +205,14 @@ export default function ReservarPage() {
   })
   const [enviando, setEnviando] = useState(false)
 
+  // Manejar hidratación
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+
     // Verificar que se tienen todos los parámetros necesarios
     if (!escenarioId || !fecha || !hora) {
       setError("Faltan parámetros requeridos para la reserva.")
@@ -209,18 +230,26 @@ export default function ReservarPage() {
     const fetchEscenario = async () => {
       setLoadingEscenario(true)
       try {
-        // Try to get from API
-        const response = await getEscenarioById(escenarioId)
-        if (response.success) {
-          setEscenario(response.data)
+        console.log("Cargando escenario ID:", escenarioId)
+
+        // Primero intentar con datos mock para asegurar que funcione
+        if (MOCK_ESCENARIOS[escenarioId]) {
+          console.log("Usando datos mock para escenario:", escenarioId)
+          setEscenario(MOCK_ESCENARIOS[escenarioId])
         } else {
-          if (MOCK_ESCENARIOS[escenarioId]) {
-            setEscenario(MOCK_ESCENARIOS[escenarioId])
+          // Intentar con API
+          const response = await getEscenarioById(escenarioId)
+          console.log("Respuesta API escenario:", response)
+
+          if (response.success && response.data) {
+            setEscenario(response.data)
           } else {
             setError("No se pudo encontrar el escenario solicitado.")
           }
         }
       } catch (error) {
+        console.error("Error cargando escenario:", error)
+        // Fallback a mock data
         if (MOCK_ESCENARIOS[escenarioId]) {
           setEscenario(MOCK_ESCENARIOS[escenarioId])
         } else {
@@ -233,80 +262,132 @@ export default function ReservarPage() {
 
     // Cargar propósitos
     const fetchPropositos = async () => {
-      const res = await getPropositos()
-      if (res.success) setPropositos(res.data)
+      setLoadingPropositos(true)
+      try {
+        console.log("Cargando propósitos...")
+        const response = await getPropositos()
+        console.log("Respuesta completa de propósitos:", response)
+        console.log("Tipo de response.data:", typeof response.data)
+        console.log("Es array response.data:", Array.isArray(response.data))
+        console.log("Contenido de response.data:", response.data)
+
+        if (response.success && response.data) {
+          let data: Proposito[] = []
+
+          // Verificar si response.data es un array directamente
+          if (Array.isArray(response.data)) {
+            console.log("response.data es array directo, usando:", response.data)
+            data = response.data
+          } else if (response.data.data && Array.isArray(response.data.data)) {
+            console.log("response.data.data es array, usando:", response.data.data)
+            data = response.data.data
+          } else {
+            console.log("Estructura no reconocida, usando datos mock")
+            data = [
+              { id: 1, nombre: "Evento deportivo" },
+              { id: 2, nombre: "Entrenamiento" },
+              { id: 3, nombre: "Competencia" },
+              { id: 4, nombre: "Recreación" },
+              { id: 5, nombre: "Clase" },
+            ]
+          }
+
+          setPropositos(data)
+        } else {
+          console.log("API falló, usando datos mock")
+          setPropositos([
+            { id: 1, nombre: "Evento deportivo" },
+            { id: 2, nombre: "Entrenamiento" },
+            { id: 3, nombre: "Competencia" },
+            { id: 4, nombre: "Recreación" },
+            { id: 5, nombre: "Clase" },
+          ])
+        }
+      } catch (error) {
+        console.error("Error cargando propósitos:", error)
+        // Usar datos mock en caso de error
+        setPropositos([
+          { id: 1, nombre: "Evento deportivo" },
+          { id: 2, nombre: "Entrenamiento" },
+          { id: 3, nombre: "Competencia" },
+          { id: 4, nombre: "Recreación" },
+          { id: 5, nombre: "Clase" },
+        ])
+      } finally {
+        setLoadingPropositos(false)
+      }
     }
 
     fetchEscenario()
     fetchPropositos()
-  }, [escenarioId, fecha, hora, user, loading, router])
+  }, [mounted, escenarioId, fecha, hora, user, loading, router])
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
   const handleReserva = async (e: React.FormEvent) => {
-  e.preventDefault()
-  if (!form.proposito_id || !form.num_participantes) {
-    toast({
-      title: "Faltan datos",
-      description: "Por favor completa todos los campos obligatorios.",
-      variant: "destructive",
-    })
-    return
-  }
-  setEnviando(true)
-  try {
-    // Formato correcto: HH:MM
-    const hora_inicio = hora.slice(0, 5)
-    const [h, m] = hora_inicio.split(":").map(Number)
-    const hora_fin = `${String(h + 2).padStart(2, "0")}:${String(m).padStart(2, "0")}`
-
-    const solicitud = {
-      escenario_id: Number(escenarioId),
-      fecha_reserva: fecha,
-      hora_inicio,
-      hora_fin,
-      proposito_id: Number(form.proposito_id),
-      num_participantes: Number(form.num_participantes),
-      notas: form.notas,
-    }
-
-    // Obtener token JWT del localStorage (ajusta si lo guardas en otro lado)
-    const token = typeof window !== "undefined" ? localStorage.getItem("pred_token") : undefined
-
-    // Usa la función centralizada del servicio
-    const data = await createSolicitud(solicitud, token)
-
-    if (data.success) {
+    e.preventDefault()
+    if (!form.proposito_id || !form.num_participantes) {
       toast({
-        title: "Reserva realizada",
-        description: "Tu solicitud de reserva fue enviada correctamente.",
-        variant: "success",
-      })
-      setForm({
-        proposito_id: "",
-        num_participantes: "",
-        notas: "",
-      })
-      router.push("/solicitudes")
-    } else {
-      toast({
-        title: "Error",
-        description: data.message || "No se pudo realizar la reserva.",
+        title: "Faltan datos",
+        description: "Por favor completa todos los campos obligatorios.",
         variant: "destructive",
       })
+      return
     }
-  } catch (error: any) {
-    toast({
-      title: "Error",
-      description: error?.message || "No se pudo realizar la reserva.",
-      variant: "destructive",
-    })
-  } finally {
-    setEnviando(false)
+    setEnviando(true)
+    try {
+      // Formato correcto: HH:MM
+      const hora_inicio = hora.slice(0, 5)
+      const [h, m] = hora_inicio.split(":").map(Number)
+      const hora_fin = `${String(h + 2).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+
+      const solicitud = {
+        escenario_id: Number(escenarioId),
+        fecha_reserva: fecha,
+        hora_inicio,
+        hora_fin,
+        proposito_id: Number(form.proposito_id),
+        num_participantes: Number(form.num_participantes),
+        notas: form.notas,
+      }
+
+      const data = await createSolicitud(solicitud)
+
+      if (data.success) {
+        toast({
+          title: "Reserva realizada",
+          description: "Tu solicitud de reserva fue enviada correctamente.",
+        })
+        setForm({
+          proposito_id: "",
+          num_participantes: "",
+          notas: "",
+        })
+        router.push("/dashboard/solicitudes")
+      } else {
+        toast({
+          title: "Error",
+          description: data.message || "No se pudo realizar la reserva.",
+          variant: "destructive",
+        })
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.message || "No se pudo realizar la reserva.",
+        variant: "destructive",
+      })
+    } finally {
+      setEnviando(false)
+    }
   }
-}
+
+  // No renderizar nada hasta que esté montado (evita hidratación)
+  if (!mounted) {
+    return null
+  }
 
   if (loading || loadingEscenario) {
     return (
@@ -363,11 +444,8 @@ export default function ReservarPage() {
                     <div className="flex items-start gap-2 text-sm">
                       <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
                       <span>
-                        {typeof escenario.localidad === "string"
-                          ? escenario.localidad
-                          : escenario.localidad?.nombre
-                        }
-                        , {escenario.direccion}
+                        {typeof escenario.localidad === "string" ? escenario.localidad : escenario.localidad?.nombre},{" "}
+                        {escenario.direccion}
                       </span>
                     </div>
                   </div>
@@ -411,7 +489,7 @@ export default function ReservarPage() {
                   <form className="space-y-4" onSubmit={handleReserva}>
                     <div>
                       <label className="block text-sm font-medium mb-1" htmlFor="proposito_id">
-                        Propósito de la reserva <span className="text-primary-red">*</span>
+                        Propósito de la reserva <span className="text-red-500">*</span>
                       </label>
                       <select
                         id="proposito_id"
@@ -420,19 +498,23 @@ export default function ReservarPage() {
                         value={form.proposito_id}
                         onChange={handleFormChange}
                         required
-                        disabled={enviando}
+                        disabled={enviando || loadingPropositos}
                       >
-                        <option value="">Selecciona un propósito</option>
-                        {propositos.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.nombre}
-                          </option>
-                        ))}
+                        <option value="">{loadingPropositos ? "Cargando..." : "Selecciona un propósito"}</option>
+                        {Array.isArray(propositos) &&
+                          propositos.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.nombre}
+                            </option>
+                          ))}
                       </select>
+                      {propositos.length > 0 && (
+                        <p className="text-xs text-green-600 mt-1">{propositos.length} propósitos cargados</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1" htmlFor="num_participantes">
-                        Número de participantes <span className="text-primary-red">*</span>
+                        Número de participantes <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="number"
@@ -462,15 +544,18 @@ export default function ReservarPage() {
                     </div>
                     <Button
                       type="submit"
-                      className="w-full bg-primary-green hover:bg-primary-dark-green"
-                      disabled={
-                        enviando ||
-                        !form.proposito_id ||
-                        !form.num_participantes
-                      }
+                      className="w-full"
+                      disabled={enviando || loadingPropositos || !form.proposito_id || !form.num_participantes}
                     >
                       {enviando ? "Enviando..." : "Reservar"}
                     </Button>
+
+                    {/* Debug info */}
+                    <div className="text-xs text-gray-500 mt-2">
+                      <p>Escenario: {escenario ? "✓ Cargado" : "✗ No cargado"}</p>
+                      <p>Propósitos: {propositos.length > 0 ? `✓ ${propositos.length} cargados` : "✗ No cargados"}</p>
+                      <p>Formulario válido: {form.proposito_id && form.num_participantes ? "✓" : "✗"}</p>
+                    </div>
                   </form>
                 </CardContent>
                 <CardFooter className="border-t px-6 py-4 text-xs text-muted-foreground">

@@ -10,39 +10,15 @@ import { UserNav } from "@/components/dashboard/user-nav"
 import { NotificationBell } from "@/components/dashboard/notification-bell"
 import { Toaster } from "@/components/ui/toaster"
 import { cn } from "@/lib/utils"
-import { Home, Building, FileText, Bell } from "lucide-react"
+import { ADMIN_NAV } from "@/lib/config"
 
-// Navegación específica para usuarios regulares (rol_id = 2)
-const USER_NAV = [
-  {
-    title: "Inicio",
-    href: "/dashboard",
-    icon: <Home className="h-4 w-4" />,
-  },
-  {
-    title: "Escenarios",
-    href: "/escenarios",
-    icon: <Building className="h-4 w-4" />,
-  },
-  {
-    title: "Mis Solicitudes",
-    href: "/dashboard/solicitudes",
-    icon: <FileText className="h-4 w-4" />,
-  },
-  {
-    title: "Notificaciones",
-    href: "/dashboard/notificaciones",
-    icon: <Bell className="h-4 w-4" />,
-  },
-]
-
-export default function DashboardLayout({
+export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const router = useRouter()
   const pathname = usePathname()
+  const router = useRouter()
   const { user, loading } = useAuth()
 
   // Redirección basada en rol
@@ -51,11 +27,11 @@ export default function DashboardLayout({
       if (!user) {
         // No autenticado, redirigir a login
         router.push("/login")
-      } else if (user.rol_id === 1) {
-        // Si es admin, redirigirlo al dashboard de admin
-        router.push("/admin/dashboard")
+      } else if (user.rol_id !== 1) {
+        // Si NO es admin (rol_id: 1), redirigir al dashboard de usuario
+        router.push("/dashboard")
       }
-      // Si es usuario regular (rol_id: 2), permitir acceso
+      // Si es admin (rol_id: 1), permitir acceso
     }
   }, [user, loading, router])
 
@@ -67,23 +43,41 @@ export default function DashboardLayout({
     )
   }
 
-  // Solo mostrar el dashboard si es usuario regular (rol_id: 2)
-  if (!user || user.rol_id !== 2) {
+  // Solo mostrar el dashboard si es administrador (rol_id: 1)
+  if (!user || user.rol_id !== 1) {
     return null
   }
 
   return (
     <div className="flex min-h-screen flex-col">
+      {/* Barra superior */}
+      <div className="bg-primary-red text-white">
+        <div className="container mx-auto flex h-10 items-center justify-between px-4">
+          <div>
+            <span className="text-sm font-medium">Panel de Administración - PRED</span>
+          </div>
+          <div className="flex items-center space-x-4 text-sm">
+            <Link href="/dashboard" className="hover:underline">
+              Vista Usuario
+            </Link>
+            <span>|</span>
+            <Link href="#" className="hover:underline">
+              Ayuda
+            </Link>
+          </div>
+        </div>
+      </div>
+
       <header className="sticky top-0 z-20 border-b bg-background">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2 md:gap-6">
-            <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
+            <Link href="/admin/dashboard" className="flex items-center gap-2 font-semibold">
               <span className="text-xl text-primary-green">PRED</span>
-              <span className="text-sm text-muted-foreground">Plataforma de Reservas</span>
+              <span className="text-sm text-muted-foreground">Admin</span>
             </Link>
             <nav className="hidden md:flex">
               <div className="flex space-x-4">
-                {USER_NAV.map((link) => (
+                {ADMIN_NAV.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
