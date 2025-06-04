@@ -4,7 +4,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from "@/context/auth-context"
-import HydrationBoundary from "@/components/hydration-boundary"
+import { HydrationBoundary } from "@/components/hydration-boundary"
 
 export const metadata: Metadata = {
   title: "PRED - Plataforma de Reserva de Escenarios Deportivos",
