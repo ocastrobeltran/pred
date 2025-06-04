@@ -25,10 +25,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Comprobar si hay una sesión guardada al cargar la aplicación
   useEffect(() => {
     const checkAuth = async () => {
-      const savedToken = localStorage.getItem("pred_token")
-      if (savedToken) {
-        setToken(savedToken)
-        await fetchUser(savedToken)
+      // Verificar que estamos en el cliente
+      if (typeof window !== "undefined") {
+        const savedToken = localStorage.getItem("pred_token")
+        if (savedToken) {
+          setToken(savedToken)
+          await fetchUser(savedToken)
+        } else {
+          setLoading(false)
+        }
       } else {
         setLoading(false)
       }
@@ -47,13 +52,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(response.data)
       } else {
         // Si hay un error, limpiar el token
-        localStorage.removeItem("pred_token")
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("pred_token")
+        }
         setToken(null)
         setUser(null)
       }
     } catch (error) {
       console.error("Error al obtener datos del usuario:", error)
-      localStorage.removeItem("pred_token")
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("pred_token")
+      }
       setToken(null)
       setUser(null)
     } finally {
@@ -67,7 +76,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await loginService(email, password)
 
       if (response.success) {
-        localStorage.setItem("pred_token", response.data.token)
+        if (typeof window !== "undefined") {
+          localStorage.setItem("pred_token", response.data.token)
+        }
         setToken(response.data.token)
         setUser(response.data.user)
         return true
@@ -92,7 +103,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Cerrar sesión
   const logout = () => {
-    localStorage.removeItem("pred_token")
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("pred_token")
+    }
     setToken(null)
     setUser(null)
   }
@@ -116,4 +129,3 @@ export function useAuth() {
   }
   return context
 }
-
