@@ -20,7 +20,7 @@ const nextConfig = {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
-    suppressHydrationWarning: true,
+    // suppressHydrationWarning: true, // Opción inválida eliminada
   },
 }
 

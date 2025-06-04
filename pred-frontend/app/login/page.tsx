@@ -1,5 +1,10 @@
+import { Suspense } from "react"
 import { LoginForm } from "@/components/forms/login-form"
 import Link from "next/link"
+
+function LoginFormWrapper() {
+  return <LoginForm />
+}
 
 export default function LoginPage() {
   return (
@@ -22,9 +27,10 @@ export default function LoginPage() {
           </h1>
           <p className="text-sm text-muted-foreground">Plataforma de Reserva de Escenarios Deportivos</p>
         </div>
-        <LoginForm />
+        <Suspense fallback={<div className="p-4 text-center">Cargando formulario...</div>}>
+          <LoginFormWrapper />
+        </Suspense>
       </div>
     </div>
   )
 }
-
