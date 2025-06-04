@@ -1,35 +1,30 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
 import "./globals.css"
-import { AuthProvider } from "@/context/auth-context"
+import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
-
-const inter = Inter({ subsets: ["latin"] })
+import { HydrationBoundary } from "@/components/hydration-boundary"
 
 export const metadata: Metadata = {
   title: "PRED - Plataforma de Reserva de Escenarios Deportivos",
-  description: "Reserva escenarios deportivos en Cartagena de manera fácil y rápida",
-    generator: 'v0.dev'
+  description: "Sistema de reservas para escenarios deportivos del Instituto Distrital de Deporte y Recreación",
 }
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
-    <html lang="es">
-      <body className={inter.className}>
-        <AuthProvider>
-          {children}
-          <Toaster />
-        </AuthProvider>
+    <html lang="es" suppressHydrationWarning>
+      <body className="font-sans antialiased">
+        <HydrationBoundary>
+          <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+            {children}
+            <Toaster />
+          </ThemeProvider>
+        </HydrationBoundary>
       </body>
     </html>
   )
 }
-
-
-
-import './globals.css'

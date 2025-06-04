@@ -1,12 +1,11 @@
 import type { Config } from "tailwindcss"
 
-const config = {
+const config: Config = {
   darkMode: ["class"],
   content: [
-    "./pages/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-    "./app/**/*.{ts,tsx}",
-    "./src/**/*.{ts,tsx}",
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "*.{js,ts,jsx,tsx,mdx}",
   ],
   prefix: "",
@@ -19,6 +18,23 @@ const config = {
       },
     },
     extend: {
+      fontFamily: {
+        sans: [
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          '"Segoe UI"',
+          "Roboto",
+          '"Helvetica Neue"',
+          "Arial",
+          '"Noto Sans"',
+          "sans-serif",
+          '"Apple Color Emoji"',
+          '"Segoe UI Emoji"',
+          '"Segoe UI Symbol"',
+          '"Noto Color Emoji"',
+        ],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -28,12 +44,9 @@ const config = {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
-          green: "var(--primary-green)",
-          red: "var(--primary-red)",
-          "dark-green": "var(--primary-dark-green)",
-          "dark-red": "var(--primary-dark-red)",
-          "light-green": "var(--primary-light-green)",
-          "light-red": "var(--primary-light-red)",
+          red: "hsl(var(--primary-red))",
+          green: "hsl(var(--primary-green))",
+          blue: "hsl(var(--primary-blue))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -59,21 +72,18 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        success: "var(--success-color)",
-        danger: "var(--danger-color)",
-        warning: "var(--warning-color)",
-        info: "var(--info-color)",
-        "text-main": "var(--text-color)",
-        "text-light": "var(--text-light)",
-        "bg-light": "var(--background-light)",
+        chart: {
+          "1": "hsl(var(--chart-1))",
+          "2": "hsl(var(--chart-2))",
+          "3": "hsl(var(--chart-3))",
+          "4": "hsl(var(--chart-4))",
+          "5": "hsl(var(--chart-5))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
-      },
-      boxShadow: {
-        custom: "var(--box-shadow)",
       },
       keyframes: {
         "accordion-down": {
@@ -89,13 +99,9 @@ const config = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },
-      transitionProperty: {
-        custom: "var(--transition)",
-      },
     },
   },
   plugins: [require("tailwindcss-animate")],
 } satisfies Config
 
 export default config
-
