@@ -84,40 +84,111 @@ export default function EscenariosPage() {
   const fetchEscenarios = async () => {
     try {
       setLoading(true)
-      // Simulamos una llamada a la API
-      setTimeout(() => {
-        // Filtramos los escenarios según los criterios
-        let filteredEscenarios = [...mockEscenarios]
+      console.log("🔄 Fetching escenarios from API...")
 
-        if (searchTerm) {
-          const term = searchTerm.toLowerCase()
-          filteredEscenarios = filteredEscenarios.filter(
-            (e) =>
-              e.nombre.toLowerCase().includes(term) ||
-              e.direccion.toLowerCase().includes(term) ||
-              e.localidad.toLowerCase().includes(term),
-          )
+      // Try to get real data from API first
+      const { getEscenarios } = await import("@/services/escenario-service")
+      const filters = {
+        search: searchTerm || undefined,
+        estado: estadoFilter !== "all" ? estadoFilter : undefined,
+      }
+
+      const response = await getEscenarios(currentPage, filters)
+      console.log("📥 Escenarios API response:", response)
+
+      if (response.success && response.data) {
+        let escenariosData = []
+
+        // Handle different response structures
+        if (Array.isArray(response.data)) {
+          escenariosData = response.data
+        } else if (response.data.data) {
+          // Check if response.data.data is an array
+          if (Array.isArray(response.data.data)) {
+            escenariosData = response.data.data
+          } else if (response.data.data.data && Array.isArray(response.data.data.data)) {
+            // Handle nested structure: response.data.data.data
+            escenariosData = response.data.data.data
+          } else if (response.data.data.escenarios && Array.isArray(response.data.data.escenarios)) {
+            escenariosData = response.data.data.escenarios
+          }
+        } else if (response.data.escenarios && Array.isArray(response.data.escenarios)) {
+          escenariosData = response.data.escenarios
+        } else {
+          console.warn("⚠️ Unexpected escenarios structure:", response.data)
+          console.log("🔍 Response.data keys:", Object.keys(response.data))
+          console.log("🔍 Full response.data:", response.data)
+
+          // Try to find the array in the response
+          const possibleArrays = Object.values(response.data).filter(Array.isArray)
+          if (possibleArrays.length > 0) {
+            escenariosData = possibleArrays[0] as any[]
+            console.log("🔍 Found array in response:", escenariosData)
+          } else {
+            // Look deeper in nested objects
+            for (const value of Object.values(response.data)) {
+              if (typeof value === "object" && value !== null) {
+                const nestedArrays = Object.values(value).filter(Array.isArray)
+                if (nestedArrays.length > 0) {
+                  escenariosData = nestedArrays[0] as any[]
+                  console.log("🔍 Found nested array in response:", escenariosData)
+                  break
+                }
+              }
+            }
+          }
         }
 
-        if (tipoFilter !== "all") {
-          filteredEscenarios = filteredEscenarios.filter((e) => e.tipo === tipoFilter)
-        }
+        console.log("🔍 Raw escenarios data:", escenariosData)
 
-        if (estadoFilter !== "all") {
-          filteredEscenarios = filteredEscenarios.filter((e) => e.estado === estadoFilter)
-        }
+        // Transform API data to match our interface
+        const transformedEscenarios = escenariosData.map((escenario) => {
+          console.log("🔄 Transforming escenario:", escenario)
 
-        setEscenarios(filteredEscenarios)
-        setTotalPages(1) // En un caso real, esto vendría de la API
-        setLoading(false)
-      }, 500)
+          return {
+            id: escenario.id,
+            nombre: escenario.nombre,
+            direccion: escenario.direccion,
+            localidad:
+              escenario.localidad_nombre || escenario.localidad?.nombre || escenario.localidad || "No especificada",
+            capacidad: escenario.capacidad,
+            tipo:
+              escenario.deporte_nombre || escenario.deporte_principal?.nombre || escenario.tipo || "No especificado",
+            estado: escenario.estado,
+            created_at: escenario.created_at,
+          }
+        })
+
+        console.log("✅ Setting transformed escenarios:", transformedEscenarios)
+        setEscenarios(transformedEscenarios)
+
+        // Handle pagination
+        if (response.data.data && response.data.data.pagination) {
+          setTotalPages(response.data.data.pagination.last_page || 1)
+        } else if (response.data.pagination) {
+          setTotalPages(response.data.pagination.last_page || 1)
+        } else if (response.data.total && response.data.per_page) {
+          setTotalPages(Math.ceil(response.data.total / response.data.per_page))
+        } else {
+          setTotalPages(1)
+        }
+      } else {
+        console.log("❌ API failed, using mock data")
+        // Fallback to mock data
+        setEscenarios(mockEscenarios)
+        setTotalPages(1)
+      }
     } catch (error) {
-      console.error("Error al cargar escenarios:", error)
+      console.error("💥 Error al cargar escenarios:", error)
+      console.log("🎭 Using mock data due to error")
+      setEscenarios(mockEscenarios)
+      setTotalPages(1)
       toast({
         title: "Error",
-        description: "No se pudieron cargar los escenarios",
+        description: "No se pudieron cargar los escenarios desde la API, mostrando datos de ejemplo",
         variant: "destructive",
       })
+    } finally {
       setLoading(false)
     }
   }
@@ -285,40 +356,53 @@ export default function EscenariosPage() {
                 </tr>
               </thead>
               <tbody>
-                {escenarios.map((escenario) => (
-                  <tr key={escenario.id} className="border-b hover:bg-muted/50">
-                    <td className="px-4 py-3 text-sm font-medium">{escenario.nombre}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3 text-muted-foreground" />
-                        {escenario.direccion}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm">{escenario.tipo}</td>
-                    <td className="px-4 py-3 text-sm">{escenario.capacidad.toLocaleString()} personas</td>
-                    <td className="px-4 py-3 text-sm">
-                      <Badge className={getEstadoBadgeColor(escenario.estado)}>
-                        {escenario.estado.charAt(0).toUpperCase() + escenario.estado.slice(1)}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleEditEscenario(escenario)} title="Editar">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteEscenario(escenario.id)}
-                          title="Eliminar"
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                {Array.isArray(escenarios) && escenarios.length > 0 ? (
+                  escenarios.map((escenario) => (
+                    <tr key={escenario.id} className="border-b hover:bg-muted/50">
+                      <td className="px-4 py-3 text-sm font-medium">{escenario.nombre}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3 text-muted-foreground" />
+                          {escenario.direccion}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm">{escenario.tipo}</td>
+                      <td className="px-4 py-3 text-sm">{escenario.capacidad.toLocaleString()} personas</td>
+                      <td className="px-4 py-3 text-sm">
+                        <Badge className={getEstadoBadgeColor(escenario.estado)}>
+                          {escenario.estado.charAt(0).toUpperCase() + escenario.estado.slice(1)}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditEscenario(escenario)}
+                            title="Editar"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteEscenario(escenario.id)}
+                            title="Eliminar"
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                      {loading ? "Cargando escenarios..." : "No hay escenarios disponibles"}
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>

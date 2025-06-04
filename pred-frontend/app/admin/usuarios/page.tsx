@@ -59,13 +59,60 @@ export default function UsuariosPage() {
         estado: estadoFilter !== "all" ? estadoFilter : undefined,
       }
 
+      console.log("🔄 Fetching usuarios with filters:", filters)
       const response = await getUsuarios(currentPage, filters)
-      if (response.success) {
-        setUsuarios(response.data.data)
-        setTotalPages(response.data.pagination?.last_page || 1)
+      console.log("📥 Response from getUsuarios:", response)
+
+      if (response.success && response.data) {
+        // Handle different response structures
+        let usuariosData = []
+
+        // Check for nested structure like escenarios
+        if (response.data.data && response.data.data.data && Array.isArray(response.data.data.data)) {
+          usuariosData = response.data.data.data
+          console.log("✅ Found usuarios in triple nested structure")
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          usuariosData = response.data.data
+          console.log("✅ Found usuarios in double nested structure")
+        } else if (Array.isArray(response.data)) {
+          usuariosData = response.data
+          console.log("✅ Found usuarios in direct array")
+        } else {
+          console.warn("⚠️ Unexpected usuarios data structure:", response.data)
+          console.log("🔍 Response.data keys:", Object.keys(response.data))
+          console.log("🔍 Full response.data:", response.data)
+
+          // Try to find any array in the response
+          const findArrayInObject = (obj: any): any[] => {
+            if (Array.isArray(obj)) return obj
+            if (typeof obj === "object" && obj !== null) {
+              for (const key in obj) {
+                const result = findArrayInObject(obj[key])
+                if (result.length > 0) return result
+              }
+            }
+            return []
+          }
+
+          usuariosData = findArrayInObject(response.data)
+          console.log("🔍 Found array data:", usuariosData)
+        }
+
+        console.log("✅ Setting usuarios:", usuariosData)
+        setUsuarios(usuariosData)
+
+        // Handle pagination
+        if (response.data.pagination) {
+          setTotalPages(response.data.pagination.last_page || 1)
+        } else if (response.data.data && response.data.data.pagination) {
+          setTotalPages(response.data.data.pagination.last_page || 1)
+        } else {
+          setTotalPages(1)
+        }
       } else {
+        console.log("❌ API failed, using mock data")
         // Mock data para desarrollo
-        setUsuarios([
+        const mockUsuarios = [
           {
             id: 1,
             nombre: "Admin",
@@ -102,11 +149,14 @@ export default function UsuariosPage() {
             estado: "activo",
             created_at: "2023-01-03T00:00:00Z",
           },
-        ])
+        ]
+        setUsuarios(mockUsuarios)
         setTotalPages(1)
       }
     } catch (error) {
-      console.error("Error al cargar usuarios:", error)
+      console.error("💥 Error al cargar usuarios:", error)
+      // Ensure usuarios is always an array even on error
+      setUsuarios([])
       toast({
         title: "Error",
         description: "No se pudieron cargar los usuarios",
@@ -119,10 +169,26 @@ export default function UsuariosPage() {
 
   const fetchRoles = async () => {
     try {
+      console.log("🔄 Fetching roles...")
       const response = await getRoles()
-      if (response.success) {
-        setRoles(response.data)
+      console.log("📥 Roles response:", response)
+
+      if (response.success && response.data) {
+        let rolesData = []
+
+        if (Array.isArray(response.data)) {
+          rolesData = response.data
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          rolesData = response.data.data
+        } else {
+          console.warn("⚠️ Unexpected roles structure:", response.data)
+          rolesData = []
+        }
+
+        console.log("✅ Setting roles:", rolesData)
+        setRoles(rolesData)
       } else {
+        console.log("❌ Roles API failed, using mock data")
         // Mock data para desarrollo
         setRoles([
           { id: 1, nombre: "Administrador" },
@@ -131,7 +197,13 @@ export default function UsuariosPage() {
         ])
       }
     } catch (error) {
-      console.error("Error al cargar roles:", error)
+      console.error("💥 Error al cargar roles:", error)
+      // Always provide fallback roles
+      setRoles([
+        { id: 1, nombre: "Administrador" },
+        { id: 2, nombre: "Supervisor" },
+        { id: 3, nombre: "Usuario" },
+      ])
     }
   }
 
@@ -319,48 +391,56 @@ export default function UsuariosPage() {
                 </tr>
               </thead>
               <tbody>
-                {usuarios.map((usuario) => (
-                  <tr key={usuario.id} className="border-b hover:bg-muted/50">
-                    <td className="px-4 py-3 text-sm">
-                      {usuario.nombre} {usuario.apellido}
-                    </td>
-                    <td className="px-4 py-3 text-sm">{usuario.email}</td>
-                    <td className="px-4 py-3 text-sm">{usuario.cedula}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <Badge className={getRolBadgeColor(usuario.rol_id)}>
-                        {usuario.rol?.nombre ||
-                          (usuario.rol_id === 1
-                            ? "Administrador"
-                            : usuario.rol_id === 2
-                              ? "Supervisor"
-                              : usuario.rol_id === 3
-                                ? "Usuario"
-                                : "Desconocido")}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <Badge className={getEstadoBadgeColor(usuario.estado)}>
-                        {usuario.estado.charAt(0).toUpperCase() + usuario.estado.slice(1)}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleEditUsuario(usuario)} title="Editar">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteUsuario(usuario.id)}
-                          title="Eliminar"
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                {Array.isArray(usuarios) && usuarios.length > 0 ? (
+                  usuarios.map((usuario) => (
+                    <tr key={usuario.id} className="border-b hover:bg-muted/50">
+                      <td className="px-4 py-3 text-sm">
+                        {usuario.nombre} {usuario.apellido}
+                      </td>
+                      <td className="px-4 py-3 text-sm">{usuario.email}</td>
+                      <td className="px-4 py-3 text-sm">{usuario.cedula}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <Badge className={getRolBadgeColor(usuario.rol_id)}>
+                          {usuario.rol?.nombre ||
+                            (usuario.rol_id === 1
+                              ? "Administrador"
+                              : usuario.rol_id === 2
+                                ? "Supervisor"
+                                : usuario.rol_id === 3
+                                  ? "Usuario"
+                                  : "Desconocido")}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <Badge className={getEstadoBadgeColor(usuario.estado)}>
+                          {usuario.estado.charAt(0).toUpperCase() + usuario.estado.slice(1)}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => handleEditUsuario(usuario)} title="Editar">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteUsuario(usuario.id)}
+                            title="Eliminar"
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                      {loading ? "Cargando usuarios..." : "No hay usuarios disponibles"}
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>

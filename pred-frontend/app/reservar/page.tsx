@@ -338,20 +338,26 @@ export default function ReservarPage() {
     }
     setEnviando(true)
     try {
-      // Formato correcto: HH:MM
-      const hora_inicio = hora.slice(0, 5)
+      // ✅ CORRECCIÓN: Usar fecha directamente sin modificaciones
+      const fechaFormateada = fecha // Ya viene en formato YYYY-MM-DD correcto
+      const hora_inicio = hora.slice(0, 5) // Formato HH:MM
       const [h, m] = hora_inicio.split(":").map(Number)
       const hora_fin = `${String(h + 2).padStart(2, "0")}:${String(m).padStart(2, "0")}`
 
+      console.log(`📅 Enviando solicitud con fecha: ${fechaFormateada}`)
+      console.log(`⏰ Hora inicio: ${hora_inicio}, Hora fin: ${hora_fin}`)
+
       const solicitud = {
         escenario_id: Number(escenarioId),
-        fecha_reserva: fecha,
+        fecha_reserva: fechaFormateada, // Usar fecha sin modificar
         hora_inicio,
         hora_fin,
         proposito_id: Number(form.proposito_id),
         num_participantes: Number(form.num_participantes),
         notas: form.notas,
       }
+
+      console.log("📝 Solicitud completa:", solicitud)
 
       const data = await createSolicitud(solicitud)
 
@@ -455,7 +461,8 @@ export default function ReservarPage() {
                       <Calendar className="h-4 w-4 text-primary" />
                       <span className="font-semibold">Fecha:</span>
                       <span>
-                        {new Date(fecha).toLocaleDateString("es-ES", {
+                        {/* ✅ CORRECCIÓN: Mostrar fecha correctamente sin zona horaria */}
+                        {new Date(fecha + "T12:00:00").toLocaleDateString("es-ES", {
                           weekday: "long",
                           year: "numeric",
                           month: "long",
@@ -550,11 +557,14 @@ export default function ReservarPage() {
                       {enviando ? "Enviando..." : "Reservar"}
                     </Button>
 
-                    {/* Debug info */}
-                    <div className="text-xs text-gray-500 mt-2">
+                    {/* Debug info - Remover en producción */}
+                    <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-100 rounded">
+                      <p>🔍 Debug Info:</p>
                       <p>Escenario: {escenario ? "✓ Cargado" : "✗ No cargado"}</p>
                       <p>Propósitos: {propositos.length > 0 ? `✓ ${propositos.length} cargados` : "✗ No cargados"}</p>
                       <p>Formulario válido: {form.proposito_id && form.num_participantes ? "✓" : "✗"}</p>
+                      <p>Fecha enviada: {fecha}</p>
+                      <p>Hora enviada: {hora}</p>
                     </div>
                   </form>
                 </CardContent>

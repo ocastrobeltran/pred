@@ -24,7 +24,7 @@ export function DisponibilidadSelector({
   const { toast } = useToast()
   const [currentMonth, setCurrentMonth] = useState<number>(0) // 0 = current month, 1 = next month
 
-  // Generar fechas para los próximos 2 meses
+  // ✅ CORRECCIÓN: Generar fechas correctamente sin problemas de zona horaria
   const generateDates = (monthOffset: number) => {
     const today = new Date()
     const currentDate = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1)
@@ -37,11 +37,16 @@ export function DisponibilidadSelector({
     // Generate array of dates
     return Array.from({ length: daysInMonth }, (_, i) => {
       const date = new Date(year, month, i + 1)
+
+      // ✅ CORRECCIÓN: Formatear fecha sin zona horaria
+      const dateValue = `${year}-${String(month + 1).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`
+
       return {
-        value: date.toISOString().split("T")[0],
+        value: dateValue,
         label: date.toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short" }),
         isToday: date.toDateString() === today.toDateString(),
         isPast: date < today && date.toDateString() !== today.toDateString(),
+        dayOfWeek: date.getDay(), // 0 = domingo, 1 = lunes, etc.
       }
     })
   }
@@ -64,8 +69,14 @@ export function DisponibilidadSelector({
       return
     }
 
-    // Redirigir a la página de reserva con los parámetros
+    // ✅ CORRECCIÓN: Usar fecha directamente sin modificaciones
+    console.log(`🎯 Navegando a reservar con fecha: ${fecha}, hora: ${hora}`)
     router.push(`/reservar?escenario_id=${escenarioId}&fecha=${fecha}&hora=${hora}`)
+  }
+
+  const handleFechaChange = (nuevaFecha: string) => {
+    console.log(`📅 Fecha seleccionada: ${nuevaFecha}`)
+    onFechaChange(nuevaFecha)
   }
 
   return (
@@ -84,7 +95,7 @@ export function DisponibilidadSelector({
               <ChevronLeft className="h-4 w-4" />
               <span className="sr-only">Mes anterior</span>
             </Button>
-            <span className="text-sm font-medium">{currentMonthName}</span>
+            <span className="text-sm font-medium capitalize">{currentMonthName}</span>
             <Button
               variant="outline"
               size="sm"
@@ -107,8 +118,10 @@ export function DisponibilidadSelector({
         </div>
 
         <div className="grid grid-cols-7 gap-1">
-          {/* Add empty cells for the first day of the month */}
-          {Array.from({ length: new Date(currentMonthDates[0].value).getDay() || 7 }).map((_, i) => (
+          {/* ✅ CORRECCIÓN: Calcular espacios vacíos correctamente */}
+          {Array.from({
+            length: currentMonthDates[0]?.dayOfWeek === 0 ? 6 : (currentMonthDates[0]?.dayOfWeek || 1) - 1,
+          }).map((_, i) => (
             <div key={`empty-${i}`} className="h-10"></div>
           ))}
 
@@ -117,9 +130,9 @@ export function DisponibilidadSelector({
               key={dateItem.value}
               variant={fecha === dateItem.value ? "default" : "outline"}
               className={`h-10 p-0 ${
-                fecha === dateItem.value ? "bg-primary-green hover:bg-primary-dark-green" : ""
+                fecha === dateItem.value ? "bg-primary text-primary-foreground" : ""
               } ${dateItem.isPast ? "opacity-50 cursor-not-allowed" : ""}`}
-              onClick={() => !dateItem.isPast && onFechaChange(dateItem.value)}
+              onClick={() => !dateItem.isPast && handleFechaChange(dateItem.value)}
               disabled={dateItem.isPast}
             >
               <span className="text-sm">{dateItem.label.split(" ")[1]}</span>
@@ -132,25 +145,42 @@ export function DisponibilidadSelector({
         <label className="text-sm font-medium mb-2 block">Selecciona una hora</label>
         {horasDisponibles.length === 0 ? (
           <div className="text-center py-6 border rounded-md bg-gray-50">
-            <p className="text-gray-500">No hay horarios disponibles para esta fecha</p>
-            <p className="text-sm text-gray-400 mt-1">Intenta seleccionar otra fecha</p>
+            <p className="text-gray-500 font-medium">No hay horarios disponibles para esta fecha</p>
+            <p className="text-sm text-gray-400 mt-1">
+              Todas las horas están ocupadas o fuera del horario de operación
+            </p>
+            <p className="text-xs text-gray-400 mt-2">💡 Intenta seleccionar otra fecha</p>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-2">
-            {horasDisponibles.map((hora) => (
-              <Button
-                key={hora}
-                variant="outline"
-                className="text-center hover:bg-primary-green hover:text-white"
-                onClick={() => handleReservar(hora)}
-              >
-                {hora.substring(0, 5)}
-              </Button>
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-3 gap-2">
+              {horasDisponibles.map((hora) => (
+                <Button
+                  key={hora}
+                  variant="outline"
+                  className="text-center hover:bg-primary hover:text-primary-foreground transition-colors"
+                  onClick={() => handleReservar(hora)}
+                >
+                  {hora.substring(0, 5)}
+                </Button>
+              ))}
+            </div>
+
+            {/* Información sobre disponibilidad */}
+            <div className="mt-3 text-xs text-muted-foreground">
+              <p>✅ {horasDisponibles.length} horarios disponibles</p>
+              <p>🕐 Duración: 2 horas por reserva</p>
+            </div>
+          </>
         )}
+      </div>
+
+      {/* Información adicional */}
+      <div className="text-xs text-muted-foreground space-y-1">
+        <p>• Las reservas tienen una duración de 2 horas</p>
+        <p>• Tu solicitud será revisada por un administrador</p>
+        <p>• Recibirás una notificación con la respuesta</p>
       </div>
     </div>
   )
 }
-

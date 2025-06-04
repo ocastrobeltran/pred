@@ -38,13 +38,34 @@ export default function AdminSolicitudDetallePage() {
   const fetchSolicitud = async () => {
     try {
       setLoading(true)
+      console.log("🔄 COMPONENT - Iniciando fetchSolicitud para ID:", id)
       const response = await getSolicitudById(id)
+      console.log("📥 COMPONENT - Respuesta recibida:", response)
+
       if (response.success) {
+        console.log("✅ COMPONENT - Respuesta exitosa, datos:", response.data)
         setSolicitud(response.data)
-        setNuevoEstado(response.data.estado.nombre)
+
+        if (response.data.estado && response.data.estado.nombre) {
+          setNuevoEstado(response.data.estado.nombre)
+          console.log("🔧 COMPONENT - Estado inicial establecido:", response.data.estado.nombre)
+        } else if (response.data.estado_nombre) {
+          setNuevoEstado(response.data.estado_nombre)
+          console.log("🔧 COMPONENT - Estado inicial establecido (plano):", response.data.estado_nombre)
+        } else {
+          setNuevoEstado("creada") // valor por defecto
+          console.log("🔧 COMPONENT - Estado inicial por defecto: creada")
+        }
+      } else {
+        console.error("❌ COMPONENT - Respuesta no exitosa:", response)
+        toast({
+          title: "Error",
+          description: response.message || "No se pudo cargar la solicitud",
+          variant: "destructive",
+        })
       }
     } catch (error) {
-      console.error("Error al cargar solicitud:", error)
+      console.error("💥 COMPONENT - Error al cargar solicitud:", error)
       toast({
         title: "Error",
         description: "No se pudo cargar la solicitud",
@@ -59,15 +80,35 @@ export default function AdminSolicitudDetallePage() {
     try {
       const response = await getEstadosSolicitud()
       if (response.success) {
-        setEstados(response.data)
+        // ✅ CORRECCIÓN: Manejar estructura anidada de estados
+        if (Array.isArray(response.data)) {
+          setEstados(response.data)
+        } else if (response.data && Array.isArray(response.data.data)) {
+          setEstados(response.data.data)
+        } else {
+          console.warn("⚠️ Estructura de estados inesperada:", response.data)
+          setEstados([
+            { id: 1, nombre: "creada", color: "#FFC107" },
+            { id: 2, nombre: "en_proceso", color: "#007BFF" },
+            { id: 3, nombre: "aprobada", color: "#28A745" },
+            { id: 4, nombre: "rechazada", color: "#DC3545" },
+          ])
+        }
       }
     } catch (error) {
       console.error("Error al cargar estados:", error)
+      // Fallback a estados mock
+      setEstados([
+        { id: 1, nombre: "creada", color: "#FFC107" },
+        { id: 2, nombre: "en_proceso", color: "#007BFF" },
+        { id: 3, nombre: "aprobada", color: "#28A745" },
+        { id: 4, nombre: "rechazada", color: "#DC3545" },
+      ])
     }
   }
 
   const handleCambiarEstado = async () => {
-    if (!solicitud || nuevoEstado === solicitud.estado.nombre) {
+    if (!solicitud || nuevoEstado === (solicitud.estado?.nombre || solicitud.estado_nombre)) {
       toast({
         title: "Sin cambios",
         description: "No se ha seleccionado un estado diferente",
@@ -78,7 +119,9 @@ export default function AdminSolicitudDetallePage() {
 
     try {
       setProcesando(true)
+      console.log("🔄 COMPONENT - Cambiando estado a:", nuevoEstado, "con notas:", adminNotas)
       const response = await cambiarEstadoSolicitud(solicitud.id, nuevoEstado, adminNotas)
+      console.log("📥 COMPONENT - Respuesta cambio estado:", response)
 
       if (response.success) {
         toast({
@@ -106,6 +149,43 @@ export default function AdminSolicitudDetallePage() {
     }
   }
 
+  // ✅ CORRECCIÓN: Función para acciones rápidas que ejecuta el cambio inmediatamente
+  const handleAccionRapida = async (estado: string, notas: string) => {
+    if (!solicitud) return
+
+    try {
+      setProcesando(true)
+      console.log("⚡ COMPONENT - Acción rápida:", estado, "con notas:", notas)
+      const response = await cambiarEstadoSolicitud(solicitud.id, estado, notas)
+      console.log("📥 COMPONENT - Respuesta acción rápida:", response)
+
+      if (response.success) {
+        toast({
+          title: "Estado actualizado",
+          description: `La solicitud ha sido ${estado}`,
+        })
+        fetchSolicitud() // Recargar datos
+        setAdminNotas("")
+        setNuevoEstado(estado) // Actualizar el dropdown
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "No se pudo actualizar el estado",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error en acción rápida:", error)
+      toast({
+        title: "Error",
+        description: "Error de conexión",
+        variant: "destructive",
+      })
+    } finally {
+      setProcesando(false)
+    }
+  }
+
   const getEstadoColor = (estado: string) => {
     switch (estado) {
       case "pendiente":
@@ -121,7 +201,14 @@ export default function AdminSolicitudDetallePage() {
     }
   }
 
+  // ✅ DEBUGGING: Agregar logs para verificar el estado del componente
+  console.log("🔍 COMPONENT RENDER - Estado actual:")
+  console.log("🔍 loading:", loading)
+  console.log("🔍 solicitud:", solicitud)
+  console.log("🔍 estados:", estados)
+
   if (loading) {
+    console.log("⏳ COMPONENT - Mostrando loading...")
     return (
       <div className="flex h-40 items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-green border-t-transparent"></div>
@@ -130,6 +217,7 @@ export default function AdminSolicitudDetallePage() {
   }
 
   if (!solicitud) {
+    console.log("❌ COMPONENT - No hay solicitud, mostrando error...")
     return (
       <div className="flex flex-col items-center justify-center h-40 gap-4">
         <h2 className="text-xl font-semibold">Solicitud no encontrada</h2>
@@ -137,6 +225,8 @@ export default function AdminSolicitudDetallePage() {
       </div>
     )
   }
+
+  console.log("✅ COMPONENT - Renderizando solicitud:", solicitud)
 
   return (
     <div className="space-y-6">
@@ -147,7 +237,7 @@ export default function AdminSolicitudDetallePage() {
         </Button>
         <div>
           <h1 className="text-3xl font-bold">Gestión de Solicitud</h1>
-          <p className="text-muted-foreground">Código: {solicitud.codigo_reserva}</p>
+          <p className="text-muted-foreground">Código: {solicitud.codigo_reserva || "Sin código"}</p>
         </div>
       </div>
 
@@ -158,8 +248,9 @@ export default function AdminSolicitudDetallePage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Información de la Reserva</CardTitle>
-                <Badge className={getEstadoColor(solicitud.estado.nombre)}>
-                  {solicitud.estado.nombre.charAt(0).toUpperCase() + solicitud.estado.nombre.slice(1)}
+                <Badge className={getEstadoColor(solicitud.estado?.nombre || solicitud.estado_nombre || "creada")}>
+                  {(solicitud.estado?.nombre || solicitud.estado_nombre || "Sin estado").charAt(0).toUpperCase() +
+                    (solicitud.estado?.nombre || solicitud.estado_nombre || "Sin estado").slice(1)}
                 </Badge>
               </div>
             </CardHeader>
@@ -167,22 +258,24 @@ export default function AdminSolicitudDetallePage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <h3 className="font-semibold">Escenario</h3>
-                  <p>{solicitud.escenario.nombre}</p>
+                  <p>{solicitud.escenario?.nombre || solicitud.escenario_nombre || "Sin escenario"}</p>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <MapPin className="h-4 w-4" />
-                    <span>{solicitud.escenario.localidad}</span>
+                    <span>{solicitud.escenario?.localidad || solicitud.localidad_nombre || "Sin localidad"}</span>
                   </div>
                 </div>
                 <div className="space-y-2">
                   <h3 className="font-semibold">Fecha y Hora</h3>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
-                    <span>{new Date(solicitud.fecha_reserva).toLocaleDateString()}</span>
+                    <span>
+                      {solicitud.fecha_reserva ? new Date(solicitud.fecha_reserva).toLocaleDateString() : "Sin fecha"}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
                     <span>
-                      {solicitud.hora_inicio} - {solicitud.hora_fin}
+                      {solicitud.hora_inicio || "Sin hora"} - {solicitud.hora_fin || "Sin hora"}
                     </span>
                   </div>
                 </div>
@@ -193,13 +286,13 @@ export default function AdminSolicitudDetallePage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <h3 className="font-semibold">Propósito</h3>
-                  <p>{solicitud.proposito.nombre}</p>
+                  <p>{solicitud.proposito?.nombre || solicitud.proposito_nombre || "Sin propósito"}</p>
                 </div>
                 <div className="space-y-2">
                   <h3 className="font-semibold">Participantes</h3>
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4" />
-                    <span>{solicitud.num_participantes} personas</span>
+                    <span>{solicitud.num_participantes || 0} personas</span>
                   </div>
                 </div>
               </div>
@@ -238,36 +331,61 @@ export default function AdminSolicitudDetallePage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {solicitud.historial.map((evento, index) => (
-                  <div key={evento.id} className="flex gap-4">
+                {solicitud.historial && Array.isArray(solicitud.historial) && solicitud.historial.length > 0 ? (
+                  solicitud.historial.map((evento, index) => (
+                    <div key={evento?.id || index} className="flex gap-4">
+                      <div className="flex flex-col items-center">
+                        <div className="w-3 h-3 bg-primary-green rounded-full"></div>
+                        {index < solicitud.historial.length - 1 && <div className="w-px h-8 bg-border mt-2"></div>}
+                      </div>
+                      <div className="flex-1 pb-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          {evento?.estado_anterior && (
+                            <>
+                              <Badge variant="outline" className="text-xs">
+                                {evento.estado_anterior?.nombre || "Estado anterior"}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">→</span>
+                            </>
+                          )}
+                          <Badge className={getEstadoColor(evento?.estado_nuevo?.nombre || "creada")}>
+                            {evento?.estado_nuevo?.nombre || "Estado desconocido"}
+                          </Badge>
+                        </div>
+                        <p className="text-sm font-medium">
+                          {evento?.usuario?.nombre || "Usuario"} {evento?.usuario?.apellido || ""}
+                        </p>
+                        {evento?.notas && <p className="text-sm text-muted-foreground mt-1">{evento.notas}</p>}
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {evento?.created_at ? new Date(evento.created_at).toLocaleString() : "Fecha desconocida"}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex gap-4">
                     <div className="flex flex-col items-center">
                       <div className="w-3 h-3 bg-primary-green rounded-full"></div>
-                      {index < solicitud.historial.length - 1 && <div className="w-px h-8 bg-border mt-2"></div>}
                     </div>
                     <div className="flex-1 pb-4">
                       <div className="flex items-center gap-2 mb-1">
-                        {evento.estado_anterior && (
-                          <>
-                            <Badge variant="outline" className="text-xs">
-                              {evento.estado_anterior.nombre}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">→</span>
-                          </>
-                        )}
-                        <Badge className={getEstadoColor(evento.estado_nuevo.nombre)}>
-                          {evento.estado_nuevo.nombre}
+                        <Badge
+                          className={getEstadoColor(solicitud.estado?.nombre || solicitud.estado_nombre || "creada")}
+                        >
+                          {solicitud.estado?.nombre || solicitud.estado_nombre || "Creada"}
                         </Badge>
                       </div>
                       <p className="text-sm font-medium">
-                        {evento.usuario.nombre} {evento.usuario.apellido}
+                        {solicitud.usuario?.nombre || solicitud.usuario_nombre || "Usuario"}{" "}
+                        {solicitud.usuario?.apellido || solicitud.usuario_apellido || ""}
                       </p>
-                      {evento.notas && <p className="text-sm text-muted-foreground mt-1">{evento.notas}</p>}
+                      <p className="text-sm text-muted-foreground mt-1">Solicitud creada</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(evento.created_at).toLocaleString()}
+                        {solicitud.created_at ? new Date(solicitud.created_at).toLocaleString() : "Fecha desconocida"}
                       </p>
                     </div>
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
@@ -284,16 +402,19 @@ export default function AdminSolicitudDetallePage() {
               <div>
                 <h4 className="font-medium">Nombre completo</h4>
                 <p className="text-sm text-muted-foreground">
-                  {solicitud.usuario.nombre} {solicitud.usuario.apellido}
+                  {solicitud.usuario?.nombre || solicitud.usuario_nombre || "Sin nombre"}{" "}
+                  {solicitud.usuario?.apellido || solicitud.usuario_apellido || ""}
                 </p>
               </div>
               <div>
                 <h4 className="font-medium">Email</h4>
-                <p className="text-sm text-muted-foreground">{solicitud.usuario.email}</p>
+                <p className="text-sm text-muted-foreground">
+                  {solicitud.usuario?.email || solicitud.usuario_email || "Sin email"}
+                </p>
               </div>
               <div>
                 <h4 className="font-medium">Teléfono</h4>
-                <p className="text-sm text-muted-foreground">{solicitud.usuario.telefono}</p>
+                <p className="text-sm text-muted-foreground">{solicitud.usuario?.telefono || "Sin teléfono"}</p>
               </div>
             </CardContent>
           </Card>
@@ -311,11 +432,12 @@ export default function AdminSolicitudDetallePage() {
                     <SelectValue placeholder="Seleccionar estado" />
                   </SelectTrigger>
                   <SelectContent>
-                    {estados.map((estado) => (
-                      <SelectItem key={estado.id} value={estado.nombre}>
-                        {estado.nombre.charAt(0).toUpperCase() + estado.nombre.slice(1)}
-                      </SelectItem>
-                    ))}
+                    {Array.isArray(estados) &&
+                      estados.map((estado) => (
+                        <SelectItem key={estado.id} value={estado.nombre}>
+                          {estado.nombre.charAt(0).toUpperCase() + estado.nombre.slice(1)}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -333,7 +455,7 @@ export default function AdminSolicitudDetallePage() {
 
               <Button
                 onClick={handleCambiarEstado}
-                disabled={procesando || nuevoEstado === solicitud.estado.nombre}
+                disabled={procesando || nuevoEstado === (solicitud.estado?.nombre || solicitud.estado_nombre)}
                 className="w-full bg-primary-green hover:bg-primary-dark-green"
               >
                 {procesando ? (
@@ -353,11 +475,8 @@ export default function AdminSolicitudDetallePage() {
                   <Button
                     size="sm"
                     className="flex-1 bg-green-600 hover:bg-green-700"
-                    onClick={() => {
-                      setNuevoEstado("aprobada")
-                      setAdminNotas("Solicitud aprobada")
-                    }}
-                    disabled={solicitud.estado.nombre === "aprobada"}
+                    onClick={() => handleAccionRapida("aprobada", "Solicitud aprobada")}
+                    disabled={procesando || (solicitud.estado?.nombre || solicitud.estado_nombre) === "aprobada"}
                   >
                     <CheckCircle className="h-4 w-4 mr-1" />
                     Aprobar
@@ -366,11 +485,8 @@ export default function AdminSolicitudDetallePage() {
                     size="sm"
                     variant="destructive"
                     className="flex-1"
-                    onClick={() => {
-                      setNuevoEstado("rechazada")
-                      setAdminNotas("Solicitud rechazada por revisión administrativa")
-                    }}
-                    disabled={solicitud.estado.nombre === "rechazada"}
+                    onClick={() => handleAccionRapida("rechazada", "Solicitud rechazada por revisión administrativa")}
+                    disabled={procesando || (solicitud.estado?.nombre || solicitud.estado_nombre) === "rechazada"}
                   >
                     <XCircle className="h-4 w-4 mr-1" />
                     Rechazar
@@ -388,7 +504,9 @@ export default function AdminSolicitudDetallePage() {
             <CardContent className="space-y-3">
               <div>
                 <h4 className="font-medium">Fecha de creación</h4>
-                <p className="text-sm text-muted-foreground">{new Date(solicitud.created_at).toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">
+                  {solicitud.created_at ? new Date(solicitud.created_at).toLocaleString() : "Fecha desconocida"}
+                </p>
               </div>
               {solicitud.fecha_respuesta && (
                 <div>
@@ -416,10 +534,10 @@ export default function AdminSolicitudDetallePage() {
             </CardHeader>
             <CardContent className="space-y-2">
               <Button variant="outline" className="w-full" asChild>
-                <a href={`/admin/escenarios/${solicitud.escenario.id}`}>Ver escenario</a>
+                <a href={`/admin/escenarios/${solicitud.escenario?.id || solicitud.escenario_id}`}>Ver escenario</a>
               </Button>
               <Button variant="outline" className="w-full" asChild>
-                <a href={`/admin/usuarios/${solicitud.usuario.id}`}>Ver usuario</a>
+                <a href={`/admin/usuarios/${solicitud.usuario?.id || solicitud.usuario_id}`}>Ver usuario</a>
               </Button>
               <Button className="w-full bg-primary-green hover:bg-primary-dark-green">
                 <MessageSquare className="h-4 w-4 mr-2" />

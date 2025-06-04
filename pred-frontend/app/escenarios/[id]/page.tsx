@@ -239,14 +239,41 @@ export default function EscenarioPage() {
   const fetchHoras = async () => {
     setCargandoHorarios(true)
     try {
+      console.log(`🔄 Obteniendo horas disponibles para escenario ${id} en fecha ${fechaSeleccionada}`)
+
       const response = await getHorasDisponibles(Number(id), fechaSeleccionada)
+      console.log("📥 Respuesta completa de horas:", response)
 
       if (response.success && response.data) {
-        const horasData = Array.isArray(response.data) ? response.data : response.data.data || []
+        // Manejar diferentes estructuras de respuesta del backend
+        let horasData: string[] = []
+
+        if (Array.isArray(response.data)) {
+          horasData = response.data
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          horasData = response.data.data
+        } else if (response.data.available_hours && Array.isArray(response.data.available_hours)) {
+          horasData = response.data.available_hours
+        } else if (response.data.horas_disponibles && Array.isArray(response.data.horas_disponibles)) {
+          horasData = response.data.horas_disponibles
+        } else {
+          console.warn("⚠️ Estructura de horas inesperada:", response.data)
+          horasData = []
+        }
+
+        console.log(`✅ Horas disponibles extraídas: ${horasData.length}`, horasData)
+
+        // ✅ IMPORTANTE: Solo mostrar horas que realmente están disponibles
+        // El backend debe filtrar las horas ocupadas por reservas aprobadas
         setHorasDisponibles(horasData)
+
+        if (horasData.length === 0) {
+          console.log("⚠️ No hay horas disponibles para esta fecha - todas están ocupadas o fuera de horario")
+        }
       } else {
-        // Mock data para horas disponibles
-        const mockHoras = [
+        console.log("❌ API de horas falló, usando mock limitado")
+        // Mock data más realista - simular algunas horas ocupadas
+        const todasLasHoras = [
           "06:00",
           "07:00",
           "08:00",
@@ -261,27 +288,20 @@ export default function EscenarioPage() {
           "19:00",
           "20:00",
         ]
-        setHorasDisponibles(mockHoras)
+
+        // Simular que algunas horas están ocupadas (para testing)
+        const horasOcupadas = ["09:00", "15:00", "18:00"] // Ejemplo de horas ocupadas
+        const horasDisponiblesMock = todasLasHoras.filter((hora) => !horasOcupadas.includes(hora))
+
+        setHorasDisponibles(horasDisponiblesMock)
+        console.log("🎭 Mock: Horas disponibles (excluyendo ocupadas):", horasDisponiblesMock)
       }
     } catch (error) {
-      console.error("Error fetching horas:", error)
-      // Mock data para horas disponibles
-      const mockHoras = [
-        "06:00",
-        "07:00",
-        "08:00",
-        "09:00",
-        "10:00",
-        "11:00",
-        "14:00",
-        "15:00",
-        "16:00",
-        "17:00",
-        "18:00",
-        "19:00",
-        "20:00",
-      ]
-      setHorasDisponibles(mockHoras)
+      console.error("💥 Error fetching horas:", error)
+      // En caso de error, mostrar horarios limitados para evitar conflictos
+      const horasSafeMode = ["06:00", "07:00", "08:00", "14:00", "15:00", "16:00"]
+      setHorasDisponibles(horasSafeMode)
+      console.log("🛡️ Safe mode: Horas limitadas por error:", horasSafeMode)
     } finally {
       setCargandoHorarios(false)
     }
@@ -420,12 +440,36 @@ export default function EscenarioPage() {
                       <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-green border-t-transparent"></div>
                     </div>
                   ) : (
-                    <DisponibilidadSelector
-                      escenarioId={id}
-                      fecha={fechaSeleccionada}
-                      horasDisponibles={horasDisponibles}
-                      onFechaChange={handleFechaChange}
-                    />
+                    <>
+                      {/* 🔍 DEBUG PANEL - Remover después de confirmar funcionamiento */}
+                      {process.env.NODE_ENV === "development" && (
+                        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-xs">
+                          <h4 className="font-semibold text-blue-800 mb-2">🔍 Debug - Disponibilidad</h4>
+                          <p>
+                            <strong>Escenario ID:</strong> {id}
+                          </p>
+                          <p>
+                            <strong>Fecha seleccionada:</strong> {fechaSeleccionada}
+                          </p>
+                          <p>
+                            <strong>Horas disponibles:</strong> {horasDisponibles.length}
+                          </p>
+                          <p>
+                            <strong>Lista de horas:</strong> {horasDisponibles.join(", ") || "Ninguna"}
+                          </p>
+                          <p>
+                            <strong>Estado carga:</strong> {cargandoHorarios ? "Cargando..." : "Completado"}
+                          </p>
+                        </div>
+                      )}
+
+                      <DisponibilidadSelector
+                        escenarioId={id}
+                        fecha={fechaSeleccionada}
+                        horasDisponibles={horasDisponibles}
+                        onFechaChange={handleFechaChange}
+                      />
+                    </>
                   )}
                 </CardContent>
               </Card>
