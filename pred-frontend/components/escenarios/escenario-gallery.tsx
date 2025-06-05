@@ -1,71 +1,176 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { MapPin } from "lucide-react"
+import { useState } from "react"
+import { OptimizedImage } from "@/components/ui/optimized-image"
+import { Button } from "@/components/ui/button"
+import { ChevronLeft, ChevronRight, X } from "lucide-react"
+import { cn } from "@/lib/utils"
 
-interface EscenarioGalleryProps {
-  imagenes: { id: number; url_imagen: string; es_principal: boolean }[]
-  nombre: string
+interface Imagen {
+  id: number
+  url: string
+  es_principal: boolean
+  orden?: number
 }
 
-export function EscenarioGallery({ imagenes, nombre }: EscenarioGalleryProps) {
-  const [imagenActiva, setImagenActiva] = useState<string | null>(null)
+interface EscenarioGalleryProps {
+  imagenes: Imagen[]
+  nombre: string
+  imagenPrincipal?: string
+}
 
-  // Asegurarse de que siempre haya al menos una imagen
-  useEffect(() => {
-    if (imagenes && imagenes.length > 0) {
-      // Buscar la imagen principal primero
-      const imagenPrincipal = imagenes.find((img) => img.es_principal)
-      if (imagenPrincipal) {
-        setImagenActiva(imagenPrincipal.url_imagen)
-      } else {
-        // Si no hay imagen principal, usar la primera
-        setImagenActiva(imagenes[0].url_imagen)
-      }
-    } else {
-      // Si no hay imágenes, usar un placeholder
-      setImagenActiva("/placeholder.svg?height=600&width=800")
+export function EscenarioGallery({ imagenes, nombre, imagenPrincipal }: EscenarioGalleryProps) {
+  const [selectedImage, setSelectedImage] = useState<number>(0)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  // Combinar imagen principal con galería
+  const allImages = [
+    ...(imagenPrincipal ? [{ id: 0, url: imagenPrincipal, es_principal: true }] : []),
+    ...imagenes.filter((img) => !img.es_principal),
+  ]
+
+  // Si no hay imágenes, mostrar placeholder
+  if (allImages.length === 0) {
+    allImages.push({ id: 0, url: "", es_principal: true })
+  }
+
+  // Ordenar imágenes por orden si existe
+  const sortedImages = [...allImages].sort((a, b) => {
+    if (a.orden !== undefined && b.orden !== undefined) {
+      return a.orden - b.orden
     }
-  }, [imagenes])
+    return 0
+  })
 
-  // Si no hay imágenes, crear un array con una imagen placeholder
-  const imagenesParaMostrar =
-    imagenes && imagenes.length > 0
-      ? imagenes
-      : [{ id: 0, url_imagen: "/placeholder.svg?height=600&width=800", es_principal: true }]
+  const nextImage = () => {
+    setSelectedImage((prev) => (prev + 1) % sortedImages.length)
+  }
+
+  const prevImage = () => {
+    setSelectedImage((prev) => (prev - 1 + sortedImages.length) % sortedImages.length)
+  }
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-md">
-      <div className="aspect-video bg-gray-200 rounded-lg overflow-hidden mb-4">
-        {imagenActiva ? (
-          <img src={imagenActiva || "/placeholder.svg"} alt={nombre} className="w-full h-full object-cover" />
-        ) : (
-          <div className="flex items-center justify-center h-full bg-gray-200">
-            <MapPin className="h-16 w-16 text-gray-400" />
+    <div className="space-y-4">
+      {/* Imagen principal */}
+      <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-100">
+        <OptimizedImage
+          src={sortedImages[selectedImage]?.url}
+          alt={`${nombre} - Imagen ${selectedImage + 1}`}
+          size="hero"
+          fill
+          priority
+          className="cursor-pointer"
+          onClick={() => setIsModalOpen(true)}
+        />
+
+        {sortedImages.length > 1 && (
+          <>
+            <Button
+              variant="outline"
+              size="icon"
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white"
+              onClick={(e) => {
+                e.stopPropagation()
+                prevImage()
+              }}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white"
+              onClick={(e) => {
+                e.stopPropagation()
+                nextImage()
+              }}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </>
+        )}
+
+        {sortedImages.length > 1 && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 text-white px-2 py-1 rounded text-sm">
+            {selectedImage + 1} / {sortedImages.length}
           </div>
         )}
       </div>
 
-      {imagenesParaMostrar.length > 0 && (
-        <div className="grid grid-cols-5 gap-2">
-          {imagenesParaMostrar.map((imagen) => (
-            <div
+      {/* Miniaturas */}
+      {sortedImages.length > 1 && (
+        <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
+          {sortedImages.map((imagen, index) => (
+            <button
               key={imagen.id}
-              className={`aspect-square rounded-md overflow-hidden cursor-pointer border-2 ${
-                imagenActiva === imagen.url_imagen ? "border-primary" : "border-transparent"
-              }`}
-              onClick={() => setImagenActiva(imagen.url_imagen)}
+              onClick={() => setSelectedImage(index)}
+              className={cn(
+                "relative aspect-video rounded overflow-hidden border-2 transition-all h-20 w-full",
+                selectedImage === index
+                  ? "border-primary ring-2 ring-primary/20"
+                  : "border-gray-200 hover:border-gray-300",
+              )}
             >
-              <img
-                src={imagen.url_imagen || "/placeholder.svg"}
-                alt={`${nombre} - imagen ${imagen.id}`}
-                className="w-full h-full object-cover"
+              <OptimizedImage
+                src={imagen.url}
+                alt={`${nombre} - Miniatura ${index + 1}`}
+                size="thumbnail"
+                width={120}
+                height={80}
+                className="h-full w-full object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Modal de imagen completa */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+          <div className="relative max-w-7xl max-h-full">
+            <Button
+              variant="outline"
+              size="icon"
+              className="absolute -top-12 right-0 bg-white/10 hover:bg-white/20 text-white border-white/20"
+              onClick={() => setIsModalOpen(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+
+            <div className="relative w-full max-w-4xl max-h-[80vh] aspect-video">
+              <OptimizedImage
+                src={sortedImages[selectedImage]?.url}
+                alt={`${nombre} - Imagen completa`}
+                size="original"
+                objectFit="contain"
+                fill
               />
             </div>
-          ))}
+
+            {sortedImages.length > 1 && (
+              <>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white border-white/20"
+                  onClick={prevImage}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white border-white/20"
+                  onClick={nextImage}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
   )
 }
-

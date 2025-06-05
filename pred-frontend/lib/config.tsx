@@ -1,7 +1,7 @@
 // Configuración de la aplicación
 
 // URL de la API - Asegúrate de que NEXT_PUBLIC_API_URL esté configurada en tus variables de entorno
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://pred-backend.onrender.com/pred-backend/api"
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://pred-back.onrender.com/api"
 
 // Configuración de navegación principal del dashboard
 export const MAIN_NAV = [

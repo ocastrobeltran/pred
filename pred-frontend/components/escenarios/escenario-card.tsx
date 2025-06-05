@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MapPin, Users, Ruler, Calendar } from "lucide-react"
 import Link from "next/link"
+import { OptimizedImage } from "@/components/ui/optimized-image"
 
 interface Escenario {
   id: number
@@ -62,16 +63,15 @@ export function EscenarioCard({ escenario, viewMode = "grid" }: EscenarioCardPro
         <CardContent className="p-6">
           <div className="flex items-start gap-6">
             {/* Imagen */}
-            <div className="w-32 h-24 bg-gray-200 rounded-lg flex-shrink-0 flex items-center justify-center">
-              {escenario.imagen_principal ? (
-                <img
-                  src={`/placeholder.svg?height=96&width=128&text=${encodeURIComponent(escenario.nombre)}`}
-                  alt={escenario.nombre}
-                  className="w-full h-full object-cover rounded-lg"
-                />
-              ) : (
-                <span className="text-gray-400 text-sm">Sin imagen</span>
-              )}
+            <div className="w-32 h-24 bg-gray-200 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden">
+              <OptimizedImage
+                src={escenario.imagen_principal}
+                alt={escenario.nombre}
+                size="thumbnail"
+                width={128}
+                height={96}
+                objectFit="cover"
+              />
             </div>
 
             {/* Contenido */}
@@ -105,14 +105,14 @@ export function EscenarioCard({ escenario, viewMode = "grid" }: EscenarioCardPro
                 <Button asChild size="sm">
                   <Link href={`/escenarios/${escenario.id}`}>Ver detalles</Link>
                 </Button>
-                {escenario.estado === "disponible" && (
+                {/* {escenario.estado === "disponible" && (
                   <Button asChild variant="outline" size="sm">
                     <Link href={`/escenarios/${escenario.id}/reservar`}>
                       <Calendar className="h-4 w-4 mr-1" />
                       Reservar
                     </Link>
                   </Button>
-                )}
+                )} */}
               </div>
             </div>
           </div>
@@ -124,16 +124,8 @@ export function EscenarioCard({ escenario, viewMode = "grid" }: EscenarioCardPro
   return (
     <Card className="hover:shadow-lg transition-shadow">
       <CardHeader className="p-0">
-        <div className="h-48 bg-gray-200 rounded-t-lg flex items-center justify-center">
-          {escenario.imagen_principal ? (
-            <img
-              src={`/placeholder.svg?height=192&width=384&text=${encodeURIComponent(escenario.nombre)}`}
-              alt={escenario.nombre}
-              className="w-full h-full object-cover rounded-t-lg"
-            />
-          ) : (
-            <span className="text-gray-400">Sin imagen</span>
-          )}
+        <div className="h-48 bg-gray-200 rounded-t-lg flex items-center justify-center overflow-hidden">
+          <OptimizedImage src={escenario.imagen_principal} alt={escenario.nombre} size="card" fill priority />
         </div>
       </CardHeader>
       <CardContent className="p-6">
@@ -166,13 +158,13 @@ export function EscenarioCard({ escenario, viewMode = "grid" }: EscenarioCardPro
           <Button asChild size="sm" className="flex-1">
             <Link href={`/escenarios/${escenario.id}`}>Ver detalles</Link>
           </Button>
-          {escenario.estado === "disponible" && (
+          {/* {escenario.estado === "disponible" && (
             <Button asChild variant="outline" size="sm">
               <Link href={`/escenarios/${escenario.id}/reservar`}>
                 <Calendar className="h-4 w-4" />
               </Link>
             </Button>
-          )}
+          )} */}
         </div>
       </CardContent>
     </Card>
