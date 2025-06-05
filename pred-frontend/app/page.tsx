@@ -5,6 +5,9 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { getEscenarios } from "@/services/escenario-service"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/context/auth-context"
+import { Menu, X, User } from "lucide-react"
+import { OptimizedImage } from "@/components/ui/optimized-image"
 
 interface Escenario {
   id: number
@@ -28,8 +31,10 @@ interface Escenario {
 
 export default function Home() {
   const { toast } = useToast()
+  const { user, isAuthenticated } = useAuth()
   const [escenarios, setEscenarios] = useState<Escenario[]>([])
   const [loading, setLoading] = useState(true)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     const fetchEscenarios = async () => {
@@ -40,27 +45,59 @@ export default function Home() {
         if (response.success && response.data) {
           let escenariosData: Escenario[] = []
 
-          // Manejar la estructura anidada de la respuesta real del API
-          if (response.data.data && Array.isArray(response.data.data)) {
-            // Estructura: { success: true, data: { data: [...], pagination: {...} } }
+          // Estructura real: response.data.data.data
+          if (response.data.data && response.data.data.data && Array.isArray(response.data.data.data)) {
+            console.log("✅ Encontrados escenarios en response.data.data.data:", response.data.data.data.length)
+            escenariosData = response.data.data.data
+          }
+          // Fallback: response.data.data es array directo
+          else if (response.data.data && Array.isArray(response.data.data)) {
+            console.log("✅ Encontrados escenarios en response.data.data:", response.data.data.length)
             escenariosData = response.data.data
-          } else if (Array.isArray(response.data)) {
-            // Estructura: { success: true, data: [...] }
+          }
+          // Fallback: response.data es array directo
+          else if (Array.isArray(response.data)) {
+            console.log("✅ Encontrados escenarios en response.data:", response.data.length)
             escenariosData = response.data
-          } else {
-            console.warn("Estructura de datos inesperada:", response.data)
-            escenariosData = getDefaultEscenarios()
+          }
+          // Último fallback: buscar cualquier array en la estructura
+          else {
+            console.log("🔍 Buscando arrays en toda la estructura...")
+            const findArrayInObject = (obj: any, path = ""): any[] => {
+              if (Array.isArray(obj)) {
+                console.log(`✅ Array encontrado en ${path}:`, obj.length, "elementos")
+                return obj
+              }
+              if (obj && typeof obj === "object") {
+                for (const [key, value] of Object.entries(obj)) {
+                  const result = findArrayInObject(value, `${path}.${key}`)
+                  if (result.length > 0) return result
+                }
+              }
+              return []
+            }
+            escenariosData = findArrayInObject(response.data, "response.data")
+          }
+
+          console.log("🏟️ Total escenarios encontrados:", escenariosData.length)
+
+          if (escenariosData.length > 0) {
+            console.log(
+              "📋 Nombres de escenarios:",
+              escenariosData.slice(0, 3).map((e) => e.nombre),
+            )
           }
 
           // Tomar solo los primeros 3 escenarios para la página principal
-          setEscenarios(escenariosData.slice(0, 3))
+          const escenariosParaMostrar = escenariosData.slice(0, 3)
+          setEscenarios(escenariosParaMostrar)
         } else {
-          console.error("Error al cargar escenarios:", response.message)
-          setEscenarios(getDefaultEscenarios())
+          console.error("❌ Error al cargar escenarios:", response.message)
+          setEscenarios([])
         }
       } catch (error) {
-        console.error("Error al cargar escenarios:", error)
-        setEscenarios(getDefaultEscenarios())
+        console.error("💥 Error en fetchEscenarios:", error)
+        setEscenarios([])
       } finally {
         setLoading(false)
       }
@@ -69,81 +106,79 @@ export default function Home() {
     fetchEscenarios()
   }, [])
 
-  // Función para obtener escenarios por defecto en caso de error
-  const getDefaultEscenarios = (): Escenario[] => {
-    return [
-      {
-        id: 1,
-        nombre: "Estadio Jaime Morón",
-        descripcion: "El principal escenario deportivo para la práctica del fútbol en la ciudad de Cartagena.",
-        direccion: "Barrio Olaya Herrera, Cartagena",
-        localidad: { id: 2, nombre: "Olaya Herrera" },
-        capacidad: 16000,
-        deporte_principal: { id: 1, nombre: "Fútbol", icono: "⚽" },
-        imagen_principal: "estadio_jaime_moron.jpg",
-        dimensiones: "105m x 68m",
-        estado: "disponible",
-      },
-      {
-        id: 2,
-        nombre: "Estadio de Béisbol Once de Noviembre",
-        descripcion: "Estadio de béisbol con capacidad para 12.000 espectadores, iluminación nocturna y palcos VIP.",
-        direccion: "Centro, Cartagena",
-        localidad: { id: 1, nombre: "Centro" },
-        capacidad: 12000,
-        deporte_principal: { id: 2, nombre: "Béisbol", icono: "⚾" },
-        imagen_principal: "estadio_beisbol.jpg",
-        dimensiones: "120m x 120m",
-        estado: "disponible",
-      },
-      {
-        id: 3,
-        nombre: "Complejo Acuático Jaime González Johnson",
-        descripcion: "Complejo con piscina olímpica de 50 metros, piscina de clavados y áreas de entrenamiento.",
-        direccion: "Centro, Cartagena",
-        localidad: { id: 1, nombre: "Centro" },
-        capacidad: 1000,
-        deporte_principal: { id: 4, nombre: "Natación", icono: "🏊" },
-        imagen_principal: "complejo_acuatico.jpg",
-        dimensiones: "50m x 25m",
-        estado: "disponible",
-      },
-    ]
+  const getDashboardUrl = () => {
+    if (!user) return "/login"
+    return user.rol === "admin" ? "/admin/dashboard" : "/dashboard"
+  }
+
+  const getDashboardLabel = () => {
+    if (!user) return "Dashboard"
+    return user.rol === "admin" ? "Panel Admin" : "Mi Dashboard"
   }
 
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Barra superior - similar a la del IDER */}
-      <div className="bg-primary-red text-white">
-        <div className="container mx-auto flex h-10 items-center justify-between px-4">
-          <div>
-            <span className="text-sm font-medium">Instituto Distrital de Deporte y Recreación</span>
+      {/* Barra superior - mejorada para mobile */}
+      <div className="bg-red-700 text-white">
+        <div className="container mx-auto px-4">
+          <div className="flex h-10 items-center justify-between">
+            <div className="flex items-center">
+              <span className="text-xs sm:text-sm font-medium truncate">
+                Instituto Distrital de Deporte y Recreación
+              </span>
+            </div>
+            <div className="hidden md:flex items-center space-x-4 text-sm">
+              <Link href="https://ider.gov.co/atencion-y-servicio-a-la-ciudadania/" className="hover:underline whitespace-nowrap">
+                Servicios a la ciudadanía
+              </Link>
+              <span>|</span>
+              <Link href="https://ider.gov.co/ider/transparencia/" className="hover:underline">
+                Transparencia
+              </Link>
+              <span>|</span>
+              <Link href="https://ider.gov.co/ider/participa/" className="hover:underline">
+                Participa
+              </Link>
+            </div>
+            {/* Menú móvil para la barra superior */}
+            <div className="md:hidden">
+              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white hover:text-gray-200">
+                {mobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
+              </button>
+            </div>
           </div>
-          <div className="flex items-center space-x-4 text-sm">
-            <Link href="#" className="hover:underline">
-              Servicios a la ciudadanía
-            </Link>
-            <span>|</span>
-            <Link href="#" className="hover:underline">
-              Transparencia
-            </Link>
-            <span>|</span>
-            <Link href="#" className="hover:underline">
-              Participa
-            </Link>
-          </div>
+
+          {/* Menú móvil desplegable */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-red-400 py-2">
+              <div className="flex flex-col space-y-2 text-sm">
+                <Link href="#" className="hover:underline py-1">
+                  Servicios a la ciudadanía
+                </Link>
+                <Link href="#" className="hover:underline py-1">
+                  Transparencia
+                </Link>
+                <Link href="#" className="hover:underline py-1">
+                  Participa
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Navegación principal */}
+      {/* Navegación principal - mejorada con autenticación */}
       <header className="bg-white border-b">
         <div className="container mx-auto flex h-20 items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <Link href="/" className="flex items-center">
               <span className="text-2xl font-bold text-primary-green">PRED</span>
-              <span className="ml-2 text-xs text-gray-600">Plataforma de Reserva de Escenarios Deportivos</span>
+              <span className="ml-2 text-xs text-gray-600 hidden sm:block">
+                Plataforma de Reserva de Escenarios Deportivos
+              </span>
             </Link>
           </div>
+
           <nav className="hidden space-x-6 md:flex">
             <Link href="/" className="text-sm font-medium hover:text-primary-green">
               Inicio
@@ -158,23 +193,41 @@ export default function Home() {
               Contacto
             </Link>
           </nav>
+
           <div className="flex items-center gap-4">
-            <Link href="/login">
-              <Button
-                variant="outline"
-                className="border-primary-green text-primary-green hover:bg-primary-light-green hover:text-primary-green"
-              >
-                Iniciar Sesión
-              </Button>
-            </Link>
-            <Link href="/register" className="hidden md:block">
-              <Button className="bg-primary-green hover:bg-primary-dark-green">Registrarse</Button>
-            </Link>
+            {isAuthenticated && user ? (
+              <>
+                <Link href={getDashboardUrl()}>
+                  <Button
+                    variant="outline"
+                    className="border-primary-green text-primary-green hover:bg-primary-light-green hover:text-primary-green"
+                  >
+                    <User className="w-4 h-4 mr-2" />
+                    <span className="hidden sm:inline">{getDashboardLabel()}</span>
+                    <span className="sm:hidden">Dashboard</span>
+                  </Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button
+                    variant="outline"
+                    className="border-primary-green text-primary-green hover:bg-primary-light-green hover:text-primary-green"
+                  >
+                    Iniciar Sesión
+                  </Button>
+                </Link>
+                <Link href="/register" className="hidden sm:block">
+                  <Button className="bg-primary-green hover:bg-primary-dark-green text-white">Registrarse</Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Hero section con los colores del IDER */}
+      {/* Hero section mejorado con imagen real */}
       <section className="relative bg-gradient-to-r from-primary-green to-primary-dark-green py-20 text-white">
         <div className="container mx-auto grid gap-8 px-4 md:grid-cols-2 md:items-center">
           <div className="space-y-6">
@@ -183,19 +236,27 @@ export default function Home() {
               Encuentra y reserva fácilmente escenarios deportivos, para cualquier deporte y cuando lo necesites.
             </p>
             <div className="flex flex-col gap-4 sm:flex-row">
-              <Button asChild size="lg" className="bg-white text-primary-green hover:bg-gray-100">
+              <Button asChild size="lg" className="border-green-600 bg-white text-primary-green hover:bg-gray-100">
                 <Link href="/escenarios">Buscar Escenarios</Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="border-green-600 text-green-600 hover:bg-green-800 hover:text-yellow-100 transition-colors"
+              >
                 <Link href="/register">Crear Cuenta</Link>
               </Button>
             </div>
           </div>
           <div className="hidden md:block">
-            <img
-              src="/placeholder.svg?height=400&width=600"
-              alt="Escenarios deportivos"
-              className="rounded-lg shadow-xl"
+            <OptimizedImage
+              src="hero-escenarios-deportivos.jpg"
+              alt="Escenarios deportivos en Cartagena"
+              width={600}
+              height={400}
+              className="rounded-lg shadow-xl border-4 border-green-600"
+              priority
             />
           </div>
         </div>
@@ -239,7 +300,7 @@ export default function Home() {
                   strokeLinejoin="round"
                   className="h-8 w-8"
                 >
-                  <rect width="18" height="18" x="3" y="3" rx="2" />
+                  <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
                   <path d="M8 12h8" />
                   <path d="M12 8v8" />
                 </svg>
@@ -276,7 +337,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Escenarios destacados */}
+      {/* Escenarios destacados - mejorado con datos reales */}
       <section className="bg-slate-50 py-16">
         <div className="container mx-auto px-4">
           <h2 className="mb-4 text-center text-3xl font-bold">Escenarios Destacados</h2>
@@ -285,68 +346,77 @@ export default function Home() {
           </p>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {loading
-              ? // Mostrar esqueletos de carga
-                Array(3)
-                  .fill(0)
-                  .map((_, index) => (
-                    <div key={index} className="bg-white rounded-lg shadow-md overflow-hidden">
-                      <div className="h-48 bg-gray-200 animate-pulse"></div>
-                      <div className="p-4">
-                        <div className="h-6 bg-gray-200 rounded animate-pulse mb-2"></div>
-                        <div className="h-4 bg-gray-200 rounded animate-pulse mb-4"></div>
-                        <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2 mb-4"></div>
-                        <div className="flex justify-between items-center">
-                          <div className="h-4 bg-gray-200 rounded animate-pulse w-1/4"></div>
-                          <div className="h-8 bg-gray-200 rounded animate-pulse w-1/4"></div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-              : // Mostrar escenarios
-                escenarios.map((escenario) => (
-                  <div key={escenario.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                    <div className="h-48 bg-gray-200 relative">
-                      <img
-                        src={
-                          escenario.imagen_principal
-                            ? `/images/${escenario.imagen_principal}`
-                            : "/placeholder.svg?height=300&width=400"
-                        }
-                        alt={escenario.nombre}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement
-                          target.src = "/placeholder.svg?height=300&width=400"
-                        }}
-                      />
-                      <div className="absolute top-2 right-2 bg-primary-green text-white px-2 py-1 rounded text-sm">
-                        {escenario.deporte_principal.nombre}
-                      </div>
-                    </div>
+            {loading ? (
+              // Mostrar esqueletos de carga
+              Array(3)
+                .fill(0)
+                .map((_, index) => (
+                  <div key={index} className="bg-white rounded-lg shadow-md overflow-hidden">
+                    <div className="h-48 bg-gray-200 animate-pulse"></div>
                     <div className="p-4">
-                      <h3 className="text-xl font-bold mb-2">{escenario.nombre}</h3>
-                      <p className="text-gray-600 mb-4 line-clamp-2">{escenario.descripcion}</p>
-                      <div className="flex justify-between items-center mb-2">
-                        <div className="text-sm text-gray-500">{escenario.localidad.nombre}</div>
-                        <div className="text-sm text-gray-500">Capacidad: {escenario.capacidad.toLocaleString()}</div>
-                      </div>
+                      <div className="h-6 bg-gray-200 rounded animate-pulse mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded animate-pulse mb-4"></div>
+                      <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2 mb-4"></div>
                       <div className="flex justify-between items-center">
-                        <div className="text-sm text-gray-500">{escenario.dimensiones}</div>
-                        <Button className="bg-primary-green hover:bg-primary-dark-green" asChild>
-                          <Link href={`/escenarios/${escenario.id}`}>Ver Detalles</Link>
-                        </Button>
+                        <div className="h-4 bg-gray-200 rounded animate-pulse w-1/4"></div>
+                        <div className="h-8 bg-gray-200 rounded animate-pulse w-1/4"></div>
                       </div>
                     </div>
                   </div>
-                ))}
+                ))
+            ) : escenarios.length > 0 ? (
+              // Mostrar escenarios reales
+              escenarios.map((escenario) => (
+                <div
+                  key={escenario.id}
+                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                >
+                  <div className="h-48 bg-gray-200 relative">
+                    <OptimizedImage
+                      src={escenario.imagen_principal || "placeholder.jpg"}
+                      alt={escenario.nombre}
+                      width={400}
+                      height={300}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-2 right-2 bg-primary-green text-white px-2 py-1 rounded text-sm">
+                      {escenario.deporte_principal.nombre}
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <h3 className="text-xl font-bold mb-2">{escenario.nombre}</h3>
+                    <p className="text-gray-600 mb-4 line-clamp-2">{escenario.descripcion}</p>
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="text-sm text-gray-500">{escenario.localidad.nombre}</div>
+                      <div className="text-sm text-gray-500">Capacidad: {escenario.capacidad.toLocaleString()}</div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm text-gray-500">{escenario.dimensiones}</div>
+                      <Button className="bg-primary-green hover:bg-primary-dark-green" asChild>
+                        <Link href={`/escenarios/${escenario.id}`}>Ver Detalles</Link>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              // Mensaje cuando no hay escenarios
+              <div className="col-span-full text-center py-12">
+                <p className="text-gray-500 text-lg mb-4">No hay escenarios disponibles en este momento</p>
+                <Button asChild size="lg" className="bg-primary-green hover:bg-primary-dark-green">
+                  <Link href="/escenarios">Explorar Escenarios</Link>
+                </Button>
+              </div>
+            )}
           </div>
 
-          <div className="mt-12 text-center">
-            <Button asChild size="lg" className="bg-primary-green hover:bg-primary-dark-green">
-              <Link href="/escenarios">Ver Todos los Escenarios</Link>
-            </Button>
-          </div>
+          {escenarios.length > 0 && (
+            <div className="mt-12 text-center">
+              <Button asChild size="lg" className="bg-primary-green hover:bg-primary-dark-green">
+                <Link href="/escenarios">Ver Todos los Escenarios</Link>
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -372,7 +442,7 @@ export default function Home() {
                     >
                       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                     </svg>
-                    <span>(+57) 601 123 4567</span>
+                    <span>(+57) 301 641 1667</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <svg
@@ -490,7 +560,7 @@ export default function Home() {
               <h3 className="mb-4 text-lg font-bold">PRED</h3>
               <p className="text-gray-400">
                 Plataforma de Reserva de Escenarios Deportivos. Tu solución fácil para encontrar y reservar espacios
-                deportivos.
+                deportivos. <br /> <br /> Proyecto formativo SENA - Progrmana Analisis y Desarrollo de Software.
               </p>
             </div>
             <div>
